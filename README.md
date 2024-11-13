@@ -9,6 +9,8 @@ Applied GPU Programming
 
 %cd DD2360/DD2360-PIC/
 
+%mkdir data
+
 !ls
 
 !make
