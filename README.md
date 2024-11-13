@@ -1,5 +1,5 @@
-# DD2360
-Applied GPU Programming 
+# DD2360 Applied GPU Programming
+TBD
 
 # How to run on Colab 
 
