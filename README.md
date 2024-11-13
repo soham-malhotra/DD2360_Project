@@ -18,4 +18,6 @@ Applied GPU Programming
 !./bin/sputniPIC.out an_input_file
 ```
 
-Note: the input file is either *inputfiles/GEM_3D.inp* or *inputfiles/GEM_2D.inp*
+The input file is either : 
+- *inputfiles/GEM_3D.inp*
+- *inputfiles/GEM_2D.inp*
