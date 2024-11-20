@@ -86,7 +86,7 @@ struct GPUgrid {
         PERIODICY = src.PERIODICY;
         PERIODICZ = src.PERIODICZ;
 
-        size_t size = nxn * nyn * nzn;
+        size_t size = nxn * nyn * nzn * sizeof(FPfield);
 
         cudaErrorHandling(cudaMalloc(XN_GPU_flat, size));
         cudaErrorHandling(cudaMalloc(YN_GPU_flat, size));
