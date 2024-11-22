@@ -70,6 +70,6 @@ void gpuGridDeallocate(struct GPUgrid*);
  * @brief: assigns all static members of grid to gpu_grid
  * @param: gpu_grid -> reference to grid object on host
  */
-void copyStaticMembersToDeviceStruct(struct GPUgrid* gpu_grid, const struct grid& grid);
+void copyStaticMembers(struct GPUgrid* gpu_grid, const struct grid& grid);
 
 #endif

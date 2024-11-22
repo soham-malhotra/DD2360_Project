@@ -7,13 +7,17 @@ void gpuGridAllocateAndCpy(const grid& grd, GPUgrid* gpu_grd) {
     //allocate device memory for the grid
     cudaErrorHandling(cudaMalloc(&gpu_grd, sizeof(GPUgrid)));
 
-    // copy static grid data to device struct
-    copyStaticMembersToDeviceStruct(grd, gpu_grd);
+    // create a temporary grid on the host
+    GPUgrid temp_grid;
+    copyStaticMembers(grd, temp_grid);
+    
+    // allocate coordinate nodes on device memory
+    copyArrayToDeviceStruct<FPfield>(&(temp_grid->XN_GPU_flat), grd.XN_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(temp_grid->YN_GPU_flat), grd.YN_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(temp_grid->ZN_GPU_flat), grd.ZN_flat, size);
 
-    // allocate coordinate nodes
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->XN_GPU_flat), grd.XN_flat, size);
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->YN_GPU_flat), grd.YN_flat, size);
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->ZN_GPU_flat), grd.ZN_flat, size);
+    // copy the temporary grid to the device grid
+    cudaErrorHandling(cudaMemcpy(gpu_grd, &temp_grid, sizeof(GPUgrid), cudaMemcpyHostToDevice));
 }
 
 void gpuGridDeallocate(GPUgrid* gpu_grid) {
@@ -26,7 +30,7 @@ void gpuGridDeallocate(GPUgrid* gpu_grid) {
     cudaErrorHandling(cudaFree(gpu_grid));
 }
 
-void copyStaticMembersToDeviceStruct(const grid& grd, GPUgrid* gpu_grd) {
+void copyStaticMembers(const grid& grd, GPUgrid* gpu_grd) {
     //copy number of cells and nodes
     gpu_grd->nxc = grd.nxc;
     gpu_grd->nxn = grd.nxn;

@@ -6,7 +6,7 @@ void gpuInterpDensSpeciesAllocateAndCpy(const struct grid& grid, struct GPUInter
     size_t size_c = grid.nxc * grid.nyc * grid.nzc * sizeof(FPinterp); // number of cells
 
     cudaErrorHandling(cudaMalloc(&gpu_interp_dens_species, sizeof(GPUInterpDensSpecies)));
-    gpu_interp_dens_species->species_ID = interp_dens_species.species_ID;
+    cudaErrorHandling(cudaMemcpy(&(gpu_interp_dens_species->species_ID), &interp_dens_species.species_ID, sizeof(int), cudaMemcpyHostToDevice));
     
     // allocate densities
     copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_species->rhon_flat), interp_dens_species.rhon_flat, size);

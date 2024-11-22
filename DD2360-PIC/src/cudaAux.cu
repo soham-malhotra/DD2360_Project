@@ -4,8 +4,8 @@
 
 void cudaErrorHandling(cudaError_t cuda_error) {
     if(cuda_error != cudaSuccess) {
-        printf("Error in CUDA operation: %s\n", cudaGetErrorString(cuda_error));
-        exit(1);
+       std::cerr << "CUDA Error: " << cudaGetErrorString(cuda_error) << std::endl;
+        exit(EXIT_FAILURE);  // Or handle the error as needed
     }
 }
 
