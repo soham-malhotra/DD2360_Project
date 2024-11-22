@@ -9,12 +9,14 @@
  */
 void cudaErrorHandling(cudaError_t cuda_error);
 
+
+/**
+ * @brief: allocates memory on device and copies data from host to device
+ * @param: device_array: pointer the pointer that points to array on device memory
+ * @param: host_array: pointer to host memory
+ * @param: size: size of memory to allocate
+ */
 template <class FP>
-void copyArrayToDeviceStruct(FP** struct_device_array, FP* host_array, size_t size) {
-    FP* temp_device_array;
-    cudaErrorHandling(cudaMalloc(&temp_device_array, size));
-    cudaErrorHandling(cudaMemcpy(temp_device_array, host_array, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMemcpy(struct_device_array, &temp_device_array, sizeof(FP*), cudaMemcpyHostToDevice)); // copy address into struct
-}
+void copyArrayToDeviceStruct(FP** struct_device_array, FP* host_array, size_t size) {}
 
 #endif

@@ -1,26 +1,64 @@
 #include "GPU_Grid.h"
 
-void gpuGridAllocateAndCpy(const grid& grid, GPUgrid* gpu_grid) {
+void gpuGridAllocateAndCpy(const grid& grd, GPUgrid* gpu_grd) {
     // define field array size
-    size_t size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPfield);
+    size_t size = grd.nxn * grd.nyn * grd.nzn * sizeof(FPfield);
 
-    cudaErrorHandling(cudaMalloc(&gpu_grid, sizeof(grid)));
-    cudaMemcpy(gpu_grid, &grid, sizeof(grid), cudaMemcpyHostToDevice);
+    //allocate device memory for the grid
+    cudaErrorHandling(cudaMalloc(&gpu_grd, sizeof(GPUgrid)));
 
-    // allocate coordinate node X
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->XN_GPU_flat), grid.XN_flat, size);
+    // copy static grid data to device struct
+    copyStaticMembersToDeviceStruct(grd, gpu_grd);
 
-    // allocate coordinate node Y
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->YN_GPU_flat), grid.YN_flat, size);
-
-    // allocate coordinate node Z
-    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->ZN_GPU_flat), grid.ZN_flat, size);
+    // allocate coordinate nodes
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->XN_GPU_flat), grd.XN_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->YN_GPU_flat), grd.YN_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grd->ZN_GPU_flat), grd.ZN_flat, size);
 }
 
 void gpuGridDeallocate(GPUgrid* gpu_grid) {
+    // deallocate device memory for the grid coordinate nodes
     cudaErrorHandling(cudaFree(gpu_grid->XN_GPU_flat));
     cudaErrorHandling(cudaFree(gpu_grid->YN_GPU_flat));
     cudaErrorHandling(cudaFree(gpu_grid->ZN_GPU_flat));
 
+    // deallocate device memory for the grid
     cudaErrorHandling(cudaFree(gpu_grid));
+}
+
+void copyStaticMembersToDeviceStruct(const grid& grd, GPUgrid* gpu_grd) {
+    //copy number of cells and nodes
+    gpu_grd->nxc = grd.nxc;
+    gpu_grd->nxn = grd.nxn;
+    gpu_grd->nyc = grd.nyc;
+    gpu_grd->nyn = grd.nyn;
+    gpu_grd->nzc = grd.nzc;
+    gpu_grd->nzn = grd.nzn; 
+        
+    //copy space step and inverse of this
+    gpu_grd->dx = grd.dx;
+    gpu_grd->dy = grd.dy;
+    gpu_grd->dz = grd.dz;
+    gpu_grd->invdx = grd.invdx;
+    gpu_grd->invdy = grd.invdy;
+    gpu_grd->invdz = grd.invdz;
+    gpu_grd->invVOL = grd.invVOL;
+
+    //copy local grid boundaries coord
+    gpu_grd->xStart = grd.xStart;
+    gpu_grd->xEnd = grd.xEnd;
+    gpu_grd->yStart = grd.yStart;
+    gpu_grd->yEnd = grd.yEnd;
+    gpu_grd->zStart = grd.zStart;
+    gpu_grd->zEnd = grd.zEnd;
+
+    //copy domain size
+    gpu_grd->Lx = grd.Lx;
+    gpu_grd->Ly = grd.Ly;
+    gpu_grd->Lz = grd.Lz;
+
+    //periodicity for the fields
+    gpu_grd->PERIODICX = grd.PERIODICX;
+    gpu_grd->PERIODICY = grd.PERIODICY;
+    gpu_grd->PERIODICZ = grd.PERIODICZ;
 }
