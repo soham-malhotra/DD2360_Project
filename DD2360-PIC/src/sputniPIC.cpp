@@ -91,6 +91,8 @@ int main(int argc, char **argv){
     cudaErrorHandling(cudaMalloc(&gpu_part, param.ns * sizeof(GPUInterpDensSpecies*)));  // allocate array of pointers
 
     // allocate and copy to GPU
+    //TODO initialize flat arrays on CPU side by initGEM
+    //TODO make sure copying actually works
     gpuGridAllocateAndCpy(grd, gpu_grid);
     gpuFieldAllocateAndCpy(grd, gpu_field, field);
     gpuInterpDensNetAllocateAndCpy(grd, gpu_idn, idn);
@@ -150,6 +152,8 @@ int main(int argc, char **argv){
     
     }  // end of one PIC cycle
 
+    // clean up on GPU side
+    //TODO clean up flat arrays on CPU side
     gpuGridDeallocate(gpu_grid);
     gpuFieldDeallocate(gpu_field);
     gpuInterpDensNetDeallocate(gpu_idn);

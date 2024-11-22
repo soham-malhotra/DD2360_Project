@@ -9,33 +9,29 @@ void gpuFieldAllocateAndCpy(const struct grid& grid, struct GPUEMfield* gpu_em_f
     // nothing to copy
 
     // allocate electric field
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Ex_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Ex_flat, em_field.Ex_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Ex_flat), em_field.Ex_flat, size);
 
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Ey_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Ey_flat, em_field.Ey_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Ey_flat), em_field.Ey_flat, size);
 
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Ez_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Ez_flat, em_field.Ez_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Ez_flat), em_field.Ez_flat, size);
 
     // allocate magnetic field
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Bxn_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Bxn_flat, em_field.Bxn_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Bxn_flat), em_field.Bxn_flat, size);
 
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Byn_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Byn_flat, em_field.Byn_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Byn_flat), em_field.Byn_flat, size);
 
-    cudaErrorHandling(cudaMalloc(&gpu_em_field->Bzn_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_em_field->Bzn_flat, em_field.Bzn_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Bzn_flat), em_field.Bzn_flat, size);
 
 }
 
 
-void gpuFieldDeallocate(struct GPUEMfield* gpu_em_field) {
-    cudaErrorHandling(cudaFree(gpu_em_field->Ex_flat));
-    cudaErrorHandling(cudaFree(gpu_em_field->Ey_flat));
-    cudaErrorHandling(cudaFree(gpu_em_field->Ez_flat));
-    cudaErrorHandling(cudaFree(gpu_em_field->Bxn_flat));
-    cudaErrorHandling(cudaFree(gpu_em_field->Byn_flat));
-    cudaErrorHandling(cudaFree(gpu_em_field->Bzn_flat));
+void gpuFieldDeallocate(struct GPUEMfield* gpu_field) {
+    cudaErrorHandling(cudaFree(gpu_field->Ex_flat));
+    cudaErrorHandling(cudaFree(gpu_field->Ey_flat));
+    cudaErrorHandling(cudaFree(gpu_field->Ez_flat));
+    cudaErrorHandling(cudaFree(gpu_field->Bxn_flat));
+    cudaErrorHandling(cudaFree(gpu_field->Byn_flat));
+    cudaErrorHandling(cudaFree(gpu_field->Bzn_flat));
+
+    cudaErrorHandling(cudaFree(gpu_field));
 }

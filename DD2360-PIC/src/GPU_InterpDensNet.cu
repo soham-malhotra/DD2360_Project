@@ -9,30 +9,40 @@ void gpuInterpDensNetAllocateAndCpy(const struct grid& grid, struct GPUInterpDen
     // nothing to copy
 
     // allocate densities
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->rhon_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->rhon_flat, interp_dens_net.rhon_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->rhoc_flat, size_c));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->rhoc_flat, interp_dens_net.rhoc_flat, size_c, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->rhon_flat), interp_dens_net.rhon_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->rhoc_flat), interp_dens_net.rhoc_flat, size_c);
 
     // allocate currents
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->Jx_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->Jx_flat, interp_dens_net.Jx_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->Jy_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->Jy_flat, interp_dens_net.Jy_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->Jz_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->Jz_flat, interp_dens_net.Jz_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->Jx_flat), interp_dens_net.Jx_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->Jy_flat), interp_dens_net.Jy_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->Jz_flat), interp_dens_net.Jz_flat, size);
 
     // allocate pressure tensor
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pxx_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pxx_flat, interp_dens_net.pxx_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pxy_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pxy_flat, interp_dens_net.pxy_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pxz_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pxz_flat, interp_dens_net.pxz_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pyy_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pyy_flat, interp_dens_net.pyy_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pyz_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pyz_flat, interp_dens_net.pyz_flat, size, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net->pzz_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_interp_dens_net->pzz_flat, interp_dens_net.pzz_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pxx_flat), interp_dens_net.pxx_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pxy_flat), interp_dens_net.pxy_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pxz_flat), interp_dens_net.pxz_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pyy_flat), interp_dens_net.pyy_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pyz_flat), interp_dens_net.pyz_flat, size);
+    copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pzz_flat), interp_dens_net.pzz_flat, size);
+}
+
+void gpuInterpDensNetDeallocate(struct GPUInterpDensNet* gpu_interp_dens_net) {
+    //deallocate densities
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->rhon_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->rhoc_flat));
+
+    //deallocate currents
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jx_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jy_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jz_flat));
+
+    //deallocate pressure tensor
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxx_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxy_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxz_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pyy_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pyz_flat));
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pzz_flat));
+
+    cudaErrorHandling(cudaFree(gpu_interp_dens_net));
 }

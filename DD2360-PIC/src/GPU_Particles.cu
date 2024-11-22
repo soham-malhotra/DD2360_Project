@@ -8,18 +8,23 @@ void gpuParticleAllocateAndCpy(const struct grid& grid, struct GPUParticles* gpu
     cudaErrorHandling(cudaMemcpy(gpu_particles, &particles, sizeof(particles), cudaMemcpyHostToDevice));
 
     // allocate positions
-    cudaErrorHandling(cudaMalloc(&gpu_particles->x, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->x, particles.x, size_arr, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_particles->y, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->y, particles.y, size_arr, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_particles->z, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->z, particles.z, size_arr, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->x), particles.x, size_arr);
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->y), particles.y, size_arr);
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->z), particles.z, size_arr);
 
     // allocate velocities
-    cudaErrorHandling(cudaMalloc(&gpu_particles->u, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->u, particles.u, size_arr, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_particles->v, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->v, particles.v, size_arr, cudaMemcpyHostToDevice));
-    cudaErrorHandling(cudaMalloc(&gpu_particles->w, size_arr));
-    cudaErrorHandling(cudaMemcpy(gpu_particles->w, particles.w, size_arr, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->u), particles.u, size_arr);
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->v), particles.v, size_arr);
+    copyArrayToDeviceStruct<FPpart>(&(gpu_particles->w), particles.w, size_arr);
+}
+
+void gpuParticleDeallocate(struct GPUParticles* gpu_particles) {
+    cudaErrorHandling(cudaFree(gpu_particles->x));
+    cudaErrorHandling(cudaFree(gpu_particles->y));
+    cudaErrorHandling(cudaFree(gpu_particles->z));
+    cudaErrorHandling(cudaFree(gpu_particles->u));
+    cudaErrorHandling(cudaFree(gpu_particles->v));
+    cudaErrorHandling(cudaFree(gpu_particles->w));
+
+    cudaErrorHandling(cudaFree(gpu_particles));
 }

@@ -8,20 +8,19 @@ void gpuGridAllocateAndCpy(const grid& grid, GPUgrid* gpu_grid) {
     cudaMemcpy(gpu_grid, &grid, sizeof(grid), cudaMemcpyHostToDevice);
 
     // allocate coordinate node X
-    cudaErrorHandling(cudaMalloc(&gpu_grid->XN_GPU_flat, size));  // should overwrite old pointer
-    cudaErrorHandling(cudaMemcpy(gpu_grid->XN_GPU_flat, grid.XN_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->XN_GPU_flat), grid.XN_flat, size);
 
     // allocate coordinate node Y
-    cudaErrorHandling(cudaMalloc(&gpu_grid->YN_GPU_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_grid->YN_GPU_flat, grid.YN_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->YN_GPU_flat), grid.YN_flat, size);
 
     // allocate coordinate node Z
-    cudaErrorHandling(cudaMalloc(&gpu_grid->ZN_GPU_flat, size));
-    cudaErrorHandling(cudaMemcpy(gpu_grid->ZN_GPU_flat, grid.ZN_flat, size, cudaMemcpyHostToDevice));
+    copyArrayToDeviceStruct<FPfield>(&(gpu_grid->ZN_GPU_flat), grid.ZN_flat, size);
 }
 
 void gpuGridDeallocate(GPUgrid* gpu_grid) {
     cudaErrorHandling(cudaFree(gpu_grid->XN_GPU_flat));
     cudaErrorHandling(cudaFree(gpu_grid->YN_GPU_flat));
     cudaErrorHandling(cudaFree(gpu_grid->ZN_GPU_flat));
+
+    cudaErrorHandling(cudaFree(gpu_grid));
 }

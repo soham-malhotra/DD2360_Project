@@ -165,7 +165,7 @@ template <class type> inline void delArr4(type **** arr, size_t sz1, size_t sz2,
 #define newArr1(type, sz1) newArr1<type>(sz1)
 #define newArr(type,sz1,sz2) newArr2<type>(sz1, sz2)
 #define newArr2(type, sz1, sz2) newArr2<type>(sz1, sz2)
-#define newArr3(type, sz1, sz2, sz3) newArr3<type>(sz1, sz2, sz3)
+// #define newArr3(type, sz1, sz2, sz3) newArr3<type>(sz1, sz2, sz3)
 #define newArr4(type, sz1, sz2, sz3, sz4) newArr4<type>(sz1, sz2, sz3, sz4)
 
 #endif
