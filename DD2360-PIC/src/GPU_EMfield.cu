@@ -1,8 +1,12 @@
 #include "GPU_EMfield.h"
 
-void gpu_field_allocate(const struct grid& grid, struct GPUEMfield* gpu_em_field, const struct EMfield& em_field) {
+void gpuFieldAllocateAndCpy(const struct grid& grid, struct GPUEMfield* gpu_em_field, const struct EMfield& em_field) {
+    
     // define field array size
-    int size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPfield);
+    size_t size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPfield);
+
+    cudaErrorHandling(cudaMalloc(&gpu_em_field, sizeof(struct GPUEMfield)));
+    // nothing to copy
 
     // allocate electric field
     cudaErrorHandling(cudaMalloc(&gpu_em_field->Ex_flat, size));
@@ -27,7 +31,7 @@ void gpu_field_allocate(const struct grid& grid, struct GPUEMfield* gpu_em_field
 }
 
 
-void gpu_field_deallocate(struct GPUEMfield* gpu_em_field) {
+void gpuFieldDeallocate(struct GPUEMfield* gpu_em_field) {
     cudaErrorHandling(cudaFree(gpu_em_field->Ex_flat));
     cudaErrorHandling(cudaFree(gpu_em_field->Ey_flat));
     cudaErrorHandling(cudaFree(gpu_em_field->Ez_flat));

@@ -51,62 +51,14 @@ struct GPUgrid {
     FPfield* YN_GPU_flat;
     /** coordinate node Z */
     FPfield* ZN_GPU_flat;
-
-    // Assignment operator to copy from a grid object
-    /** equality operator to copy */
-    GPUgrid& operator=(const grid& src) {
-        nxc = src.nxc;
-        nxn = src.nxn;
-        nyc = src.nyc;
-        nyn = src.nyn;
-        nzc = src.nzc;
-        nzn = src.nzn;
-
-        dx = src.dx;
-        dy = src.dy;
-        dz = src.dz;
-
-        invdx = src.invdx;
-        invdy = src.invdy;
-        invdz = src.invdz;
-        invVOL = src.invVOL;
-
-        xStart = src.xStart;
-        xEnd = src.xEnd;
-        yStart = src.yStart;
-        yEnd = src.yEnd;
-        zStart = src.zStart;
-        zEnd = src.zEnd;
-
-        Lx = src.Lx;
-        Ly = src.Ly;
-        Lz = src.Lz;
-
-        PERIODICX = src.PERIODICX;
-        PERIODICY = src.PERIODICY;
-        PERIODICZ = src.PERIODICZ;
-
-        size_t size = nxn * nyn * nzn * sizeof(FPfield);
-
-        cudaErrorHandling(cudaMalloc(XN_GPU_flat, size));
-        cudaErrorHandling(cudaMalloc(YN_GPU_flat, size));
-        cudaErrorHandling(cudaMalloc(ZN_GPU_flat, size));
-
-        cudaErrorHandling(cudaMemCpy(XN_GPU_flat, src.XN_flat, size, MemcpyHostToDevice));
-        cudaErrorHandling(cudaMemCpy(YN_GPU_flat, src.YN_flat, size, MemcpyHostToDevice));
-        cudaErrorHandling(cudaMemCpy(ZN_GPU_flat, src.ZN_flat, size, MemcpyHostToDevice));
-
-        return *this;
-    }
-
-
 };
+
+void gpuGridAllocateAndCpy(const struct grid&, struct GPUgrid*);
 
 /**
  * @brief: deallocates memory allocated for GPUGrid
  * @param: gpu_grid -> the grid to deallocate
  */
-void deallocateGPUGrid(GPUgrid* gpu_grid) {
-}
+void gpuGridDeallocate(struct GPUgrid*);
 
 #endif

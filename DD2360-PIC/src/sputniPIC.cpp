@@ -14,14 +14,19 @@
 // Interpolated Quantities Structures
 #include "InterpDensSpecies.h"
 #include "InterpDensNet.h"
+#include "GPU_InterpDensSpecies.h"
+#include "GPU_InterpDensNet.h"
 
 // Field structure
 #include "EMfield.h" // Just E and Bn
 #include "EMfield_aux.h" // Bc, Phi, Eth, D
+#include "GPU_EMfield.h"
+#include "GPU_EMfield_aux.h"
 
 // Particles structure
 #include "Particles.h"
 #include "Particles_aux.h" // Needed only if dointerpolation on GPU - avoid reduction on GPU
+#include "GPU_Particles.h"
 
 // Initial Condition
 #include "IC.h"
@@ -49,9 +54,6 @@ int main(int argc, char **argv){
     // Set-up the grid information
     grid grd;
     setGrid(&param, &grd);
-
-    //create gpu_grid
-    GPUgrid gpu_grid = *grid;
     
     // Allocate Fields
     EMfield field;
@@ -78,6 +80,24 @@ int main(int argc, char **argv){
     
     // Initialization
     initGEM(&param,&grd,&field,&field_aux,part,ids);
+
+
+    GPUgrid* gpu_grid;
+    GPUEMfield* gpu_field;
+    GPUInterpDensSpecies** gpu_ids;  // per species
+    cudaErrorHandling(cudaMalloc(&gpu_ids, param.ns * sizeof(GPUInterpDensSpecies*)));  // allocate array of pointers
+    GPUInterpDensNet* gpu_idn;
+    GPUParticles** gpu_part;  // per species
+    cudaErrorHandling(cudaMalloc(&gpu_part, param.ns * sizeof(GPUInterpDensSpecies*)));  // allocate array of pointers
+
+    // allocate and copy to GPU
+    gpuGridAllocateAndCpy(grd, gpu_grid);
+    gpuFieldAllocateAndCpy(grd, gpu_field, field);
+    gpuInterpDensNetAllocateAndCpy(grd, gpu_idn, idn);
+    for (int is=0; is < param.ns; is++){
+        gpuInterpDensSpeciesAllocateAndCpy(grd, gpu_ids[is], ids[is]);
+        gpuParticleAllocateAndCpy(grd, gpu_part[is], part[is]);
+    }
     
     
     // **********************************************************//
@@ -129,6 +149,14 @@ int main(int argc, char **argv){
         
     
     }  // end of one PIC cycle
+
+    gpuGridDeallocate(gpu_grid);
+    gpuFieldDeallocate(gpu_field);
+    gpuInterpDensNetDeallocate(gpu_idn);
+    for (int is=0; is < param.ns; is++){
+        gpuInterpDensSpeciesDeallocate(gpu_ids[is]);
+        gpuParticleDeallocate(gpu_part[is]);
+    }
     
     /// Release the resources
     // deallocate field
