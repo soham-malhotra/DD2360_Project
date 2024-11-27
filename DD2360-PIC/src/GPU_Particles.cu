@@ -19,12 +19,16 @@ void gpuParticleAllocateAndCpy(const struct grid& grid, struct GPUParticles* gpu
 }
 
 void gpuParticleDeallocate(struct GPUParticles* gpu_particles) {
+    //deallocate positions
     cudaErrorHandling(cudaFree(gpu_particles->x));
     cudaErrorHandling(cudaFree(gpu_particles->y));
     cudaErrorHandling(cudaFree(gpu_particles->z));
+
+    //deallocate velocities
     cudaErrorHandling(cudaFree(gpu_particles->u));
     cudaErrorHandling(cudaFree(gpu_particles->v));
     cudaErrorHandling(cudaFree(gpu_particles->w));
 
+    //deallocate the struct itself
     cudaErrorHandling(cudaFree(gpu_particles));
 }

@@ -84,11 +84,15 @@ int main(int argc, char **argv){
 
     GPUgrid* gpu_grid;
     GPUEMfield* gpu_field;
-    GPUInterpDensSpecies** gpu_ids;  // per species
-    cudaErrorHandling(cudaMalloc(&gpu_ids, param.ns * sizeof(GPUInterpDensSpecies*)));  // allocate array of pointers
     GPUInterpDensNet* gpu_idn;
-    GPUParticles** gpu_part;  // per species
-    cudaErrorHandling(cudaMalloc(&gpu_part, param.ns * sizeof(GPUInterpDensSpecies*)));  // allocate array of pointers
+
+    // allocate array of pointers that point to pointers to GPUInterpDensSpecies on device
+    GPUInterpDensSpecies** gpu_ids;  
+    cudaErrorHandling(cudaMalloc(&gpu_ids, param.ns * sizeof(GPUInterpDensSpecies*)));
+
+    // allocate array of pointers that point to pointers to GPUParticles on device
+    GPUParticles** gpu_part; 
+    cudaErrorHandling(cudaMalloc(&gpu_part, param.ns * sizeof(GPUParticles*))); 
 
     // allocate and copy to GPU
     //TODO initialize flat arrays on CPU side by initGEM

@@ -5,8 +5,8 @@ void gpuInterpDensNetAllocateAndCpy(const struct grid& grid, struct GPUInterpDen
     size_t size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPinterp);  // number of nodes
     size_t size_c = grid.nxc * grid.nyc * grid.nzc * sizeof(FPinterp); // number of cells
 
+    // allocate device memory for the grid
     cudaErrorHandling(cudaMalloc(&gpu_interp_dens_net, sizeof(interpDensNet)));
-    // nothing to copy
 
     // allocate densities
     copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->rhon_flat), interp_dens_net.rhon_flat, size);
@@ -44,5 +44,6 @@ void gpuInterpDensNetDeallocate(struct GPUInterpDensNet* gpu_interp_dens_net) {
     cudaErrorHandling(cudaFree(gpu_interp_dens_net->pyz_flat));
     cudaErrorHandling(cudaFree(gpu_interp_dens_net->pzz_flat));
 
+    //deallocate device memory for the grid
     cudaErrorHandling(cudaFree(gpu_interp_dens_net));
 }
