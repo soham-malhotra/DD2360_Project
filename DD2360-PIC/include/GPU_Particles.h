@@ -8,7 +8,7 @@
 // using the original struct for now
 struct GPUParticles : particles{};
 
-void gpuParticleAllocateAndCpy(const struct grid&, struct GPUParticles*, const struct particles&);
+struct GPUParticles* gpuParticleAllocateAndCpy(const struct grid&, const struct particles&);
 
 void gpuParticleDeallocate(struct GPUParticles*);
 

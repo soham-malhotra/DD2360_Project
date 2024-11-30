@@ -1,7 +1,8 @@
 #include "GPU_EMfield.h"
 
-void gpuFieldAllocateAndCpy(const struct grid& grid, struct GPUEMfield* gpu_em_field, const struct EMfield& em_field) {
-    
+struct GPUEMfield* gpuFieldAllocateAndCpy(const struct grid& grid, const struct EMfield& em_field) {
+    GPUEMfield* gpu_em_field = nullptr;
+
     // define field array size
     size_t size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPfield);
 
@@ -18,19 +19,23 @@ void gpuFieldAllocateAndCpy(const struct grid& grid, struct GPUEMfield* gpu_em_f
     copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Byn_flat), em_field.Byn_flat, size);
     copyArrayToDeviceStruct<FPfield>(&(gpu_em_field->Bzn_flat), em_field.Bzn_flat, size);
 
+    return gpu_em_field;
 }
 
 
 void gpuFieldDeallocate(struct GPUEMfield* gpu_field) {
     //deallocate electric field
-    cudaErrorHandling(cudaFree(gpu_field->Ex_flat));
-    cudaErrorHandling(cudaFree(gpu_field->Ey_flat));
-    cudaErrorHandling(cudaFree(gpu_field->Ez_flat));
+    GPUEMfield temp_field;
+    cudaErrorHandling(cudaMemcpy(&temp_field, gpu_field, sizeof(GPUEMfield), cudaMemcpyDeviceToHost));
+
+    cudaErrorHandling(cudaFree(temp_field.Ex_flat));
+    cudaErrorHandling(cudaFree(temp_field.Ey_flat));
+    cudaErrorHandling(cudaFree(temp_field.Ez_flat));
 
     //deallocate magnetic field
-    cudaErrorHandling(cudaFree(gpu_field->Bxn_flat));
-    cudaErrorHandling(cudaFree(gpu_field->Byn_flat));
-    cudaErrorHandling(cudaFree(gpu_field->Bzn_flat));
+    cudaErrorHandling(cudaFree(temp_field.Bxn_flat));
+    cudaErrorHandling(cudaFree(temp_field.Byn_flat));
+    cudaErrorHandling(cudaFree(temp_field.Bzn_flat));
 
     //deallocate field struct
     cudaErrorHandling(cudaFree(gpu_field));

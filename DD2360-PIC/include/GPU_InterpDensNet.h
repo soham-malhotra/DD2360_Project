@@ -24,7 +24,7 @@ struct GPUInterpDensNet {
     FPinterp *pzz_flat; // on nodes
 };
 
-void gpuInterpDensNetAllocateAndCpy(const struct grid&, struct GPUInterpDensNet*, const struct interpDensNet&);
+struct GPUInterpDensNet* gpuInterpDensNetAllocateAndCpy(const struct grid&, const struct interpDensNet&);
 
 void gpuInterpDensNetDeallocate(struct GPUInterpDensNet*);
 

@@ -58,7 +58,7 @@ struct GPUgrid {
  * @param: gpu_grid -> pointer to the pointer that points to the grid on device memory
  * @param: grid -> pointer to host memory
  */
-void gpuGridAllocateAndCpy(const struct grid&, struct GPUgrid*);
+struct GPUgrid* gpuGridAllocateAndCpy(const struct grid&);
 
 /**
  * @brief: deallocates memory allocated for GPUGrid
@@ -70,6 +70,6 @@ void gpuGridDeallocate(struct GPUgrid*);
  * @brief: assigns all static members of grid to gpu_grid
  * @param: gpu_grid -> reference to grid object on host
  */
-void copyStaticMembers(struct GPUgrid* gpu_grid, const struct grid& grid);
+void copyStaticMembers(const grid& grd, GPUgrid& gpu_grd);
 
 #endif

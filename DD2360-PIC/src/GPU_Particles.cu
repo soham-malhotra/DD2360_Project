@@ -1,6 +1,7 @@
 #include "GPU_Particles.h"
 
-void gpuParticleAllocateAndCpy(const struct grid& grid, struct GPUParticles* gpu_particles, const struct particles& particles) {
+struct GPUParticles* gpuParticleAllocateAndCpy(const struct grid& grid, const struct particles& particles) {
+    GPUParticles* gpu_particles = nullptr;
 
     size_t size_arr = particles.npmax * sizeof(FPpart);  // size of particle position and velocity arrays
 
@@ -16,18 +17,23 @@ void gpuParticleAllocateAndCpy(const struct grid& grid, struct GPUParticles* gpu
     copyArrayToDeviceStruct<FPpart>(&(gpu_particles->u), particles.u, size_arr);
     copyArrayToDeviceStruct<FPpart>(&(gpu_particles->v), particles.v, size_arr);
     copyArrayToDeviceStruct<FPpart>(&(gpu_particles->w), particles.w, size_arr);
+
+    return gpu_particles;
 }
 
 void gpuParticleDeallocate(struct GPUParticles* gpu_particles) {
+    GPUParticles temp_particles;
+    cudaErrorHandling(cudaMemcpy(&temp_particles, gpu_particles, sizeof(GPUParticles), cudaMemcpyDeviceToHost));
+
     //deallocate positions
-    cudaErrorHandling(cudaFree(gpu_particles->x));
-    cudaErrorHandling(cudaFree(gpu_particles->y));
-    cudaErrorHandling(cudaFree(gpu_particles->z));
+    cudaErrorHandling(cudaFree(temp_particles.x));
+    cudaErrorHandling(cudaFree(temp_particles.y));
+    cudaErrorHandling(cudaFree(temp_particles.z));
 
     //deallocate velocities
-    cudaErrorHandling(cudaFree(gpu_particles->u));
-    cudaErrorHandling(cudaFree(gpu_particles->v));
-    cudaErrorHandling(cudaFree(gpu_particles->w));
+    cudaErrorHandling(cudaFree(temp_particles.u));
+    cudaErrorHandling(cudaFree(temp_particles.v));
+    cudaErrorHandling(cudaFree(temp_particles.w));
 
     //deallocate the struct itself
     cudaErrorHandling(cudaFree(gpu_particles));

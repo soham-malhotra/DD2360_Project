@@ -27,7 +27,7 @@ struct GPUEMfield {
  * @param: GPUEMfield -> the field to allocate and copy to
  * @param: EMfield -> the field to copy
  */
-void gpuFieldAllocateAndCpy(const struct grid&, struct GPUEMfield*, const struct EMfield&);
+struct GPUEMfield* gpuFieldAllocateAndCpy(const struct grid&, const struct EMfield&);
 
 /**
  * @brief: deallocate electric and magnetic field on GPU
