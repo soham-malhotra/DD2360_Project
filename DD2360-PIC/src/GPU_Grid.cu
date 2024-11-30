@@ -1,17 +1,17 @@
 #include "GPU_Grid.h"
 
-struct GPUgrid* gpuGridAllocateAndCpy(const grid& grd) {
+struct GPUGrid* gpuGridAllocateAndCpy(const grid& grd) {
     // define field array size
-    GPUgrid* gpu_grd = nullptr;
+    GPUGrid* gpu_grd = nullptr;
     size_t size = grd.nxn * grd.nyn * grd.nzn * sizeof(FPfield);
 
     //allocate device memory for the grid
-    cudaErrorHandling(cudaMalloc(&gpu_grd, sizeof(GPUgrid)));
+    cudaErrorHandling(cudaMalloc(&gpu_grd, sizeof(GPUGrid)));
 
     // create a temporary grid on the host
-    GPUgrid temp_grid;
+    GPUGrid temp_grid;
     copyStaticMembers(grd, temp_grid);
-    cudaErrorHandling(cudaMemcpy(gpu_grd, &temp_grid, sizeof(GPUgrid), cudaMemcpyHostToDevice));
+    cudaErrorHandling(cudaMemcpy(gpu_grd, &temp_grid, sizeof(GPUGrid), cudaMemcpyHostToDevice));
     
     // allocate coordinate nodes on device memory
     copyArrayToDeviceStruct<FPfield>(&(gpu_grd->XN_GPU_flat), grd.XN_flat, size);
@@ -21,10 +21,10 @@ struct GPUgrid* gpuGridAllocateAndCpy(const grid& grd) {
     return gpu_grd;
 }
 
-void gpuGridDeallocate(GPUgrid* gpu_grd) {
+void gpuGridDeallocate(GPUGrid* gpu_grd) {
     // deallocate device memory for the grid coordinate nodes
-    GPUgrid temp_grid;
-    cudaErrorHandling(cudaMemcpy(&temp_grid, gpu_grd, sizeof(GPUgrid), cudaMemcpyDeviceToHost));
+    GPUGrid temp_grid;
+    cudaErrorHandling(cudaMemcpy(&temp_grid, gpu_grd, sizeof(GPUGrid), cudaMemcpyDeviceToHost));
 
     cudaErrorHandling(cudaFree(temp_grid.XN_GPU_flat));
     cudaErrorHandling(cudaFree(temp_grid.YN_GPU_flat));
@@ -34,7 +34,7 @@ void gpuGridDeallocate(GPUgrid* gpu_grd) {
     cudaErrorHandling(cudaFree(gpu_grd));
 }
 
-void copyStaticMembers(const grid& grd, GPUgrid& gpu_grd) {
+void copyStaticMembers(const grid& grd, GPUGrid& gpu_grd) {
     //copy number of cells and nodes
     gpu_grd.nxc = grd.nxc;
     gpu_grd.nxn = grd.nxn;

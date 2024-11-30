@@ -11,7 +11,7 @@ struct GPUParameters : parameters{};
  * @brief: ports parameters to GPU
  * @param: parameters -> the parameters to port
  */
-void gpuParametersAllocateAndCpy(struct GPUParameters*, const struct parameters&);
+struct GPUParameters* gpuParametersAllocateAndCpy(const struct parameters& param);
 
 /**
  * @brief: deallocates parameters on GPU

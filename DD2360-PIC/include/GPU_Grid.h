@@ -5,7 +5,7 @@
 #include "cudaAux.h"
 
 /** Grid Data */
-struct GPUgrid {
+struct GPUGrid {
     /** number of cells - X direction, including + 2 (guard cells) */
     int nxc;
     /** number of nodes - X direction, including + 2 extra nodes for guard cells */
@@ -58,18 +58,18 @@ struct GPUgrid {
  * @param: gpu_grid -> pointer to the pointer that points to the grid on device memory
  * @param: grid -> pointer to host memory
  */
-struct GPUgrid* gpuGridAllocateAndCpy(const struct grid&);
+struct GPUGrid* gpuGridAllocateAndCpy(const struct grid&);
 
 /**
  * @brief: deallocates memory allocated for GPUGrid
  * @param: gpu_grid -> the grid to deallocate
  */
-void gpuGridDeallocate(struct GPUgrid*);
+void gpuGridDeallocate(struct GPUGrid*);
 
 /**
  * @brief: assigns all static members of grid to gpu_grid
  * @param: gpu_grid -> reference to grid object on host
  */
-void copyStaticMembers(const grid& grd, GPUgrid& gpu_grd);
+void copyStaticMembers(const grid& grd, GPUGrid& gpu_grd);
 
 #endif

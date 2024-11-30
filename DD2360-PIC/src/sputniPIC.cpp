@@ -7,6 +7,7 @@
 #include "PrecisionTypes.h"
 // Simulation Parameter - structure
 #include "Parameters.h"
+#include "GPU_Parameters.h"
 // Grid structure
 #include "Grid.h"
 #include "GPU_Grid.h"
@@ -21,7 +22,6 @@
 #include "EMfield.h" // Just E and Bn
 #include "EMfield_aux.h" // Bc, Phi, Eth, D
 #include "GPU_EMfield.h"
-#include "GPU_EMfield_aux.h"
 
 // Particles structure
 #include "Particles.h"
@@ -82,9 +82,9 @@ int main(int argc, char **argv){
     initGEM(&param,&grd,&field,&field_aux,part,ids);
 
     // allocate and copy to GPU
-    //TODO initialize flat arrays on CPU side by initGEM
     //TODO make sure copying actually works
-    GPUgrid* gpu_grid = gpuGridAllocateAndCpy(grd);
+    GPUParameters* gpu_param = gpuParametersAllocateAndCpy(param);
+    GPUGrid* gpu_grid = gpuGridAllocateAndCpy(grd);
     GPUEMfield* gpu_field = gpuFieldAllocateAndCpy(grd, field);
     GPUInterpDensNet* gpu_idn = gpuInterpDensNetAllocateAndCpy(grd, idn);
 
@@ -146,8 +146,8 @@ int main(int argc, char **argv){
     // }  // end of one PIC cycle
 
     // clean up on GPU side
-    //TODO clean up flat arrays on CPU side
     //TODO make sure deallocation actually works. There must be some tool to check for memory leaks?
+    gpuParametersDeallocate(gpu_param);
     gpuGridDeallocate(gpu_grid);
     gpuFieldDeallocate(gpu_field);
     gpuInterpDensNetDeallocate(gpu_idn);
