@@ -10,7 +10,7 @@
 
 #define THREAD_NR 16.0
 
-void particle_subcycler(struct GPUParticles* gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct GPUParameters* gpu_param, 
+void gpu_mover_PC(struct GPUParticles* gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct GPUParameters* gpu_param, 
                         struct particles* part, struct EMfield* field, struct grid* grd, struct parameters* param) {
     
     for (int i_sub=0; i_sub < part->n_sub_cycles; i_sub++) {
@@ -26,14 +26,14 @@ void particle_subcycler(struct GPUParticles* gpu_part, struct GPUEMfield* gpu_fi
 __global__ void particle_push_kernel(struct GPUParticles* gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct GPUParameters* gpu_param) {
 
     FPpart dt_sub_cycling = (FPpart) gpu_param->dt/((double) gpu_part->n_sub_cycles);
-    FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/gpu_param->c;
-    FPpart omdtsq, denom, ut, vt, wt, udotb;  // none of this should be done by each thread... constant memory?
+    FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/gpu_param->c;  // none of this should be done by each thread... constant memory?
+    FPpart omdtsq, denom, ut, vt, wt, udotb;
 
     FPfield Exl=0.0, Eyl=0.0, Ezl=0.0, Bxl=0.0, Byl=0.0, Bzl=0.0;
 
     int ix,iy,iz;
     FPfield weight[8];
-    FPfield xi[2], eta[2], zeta[2];  // lots of registers!? can you even store arrays on registers?
+    FPfield xi[2], eta[2], zeta[2];  // these *should* be stored on registers, but it is the compiler that decides. otherwise, local(-global) memory
 
     FPpart xptilde, yptilde, zptilde, uptilde, vptilde, wptilde;  // stored the approximation of x^n + 1/2
 
@@ -48,8 +48,8 @@ __global__ void particle_push_kernel(struct GPUParticles* gpu_part, struct GPUEM
         iy = 2 + int((yptilde - gpu_grd->yStart)*gpu_grd->invdy);
         iz = 2 + int((zptilde - gpu_grd->zStart)*gpu_grd->invdz);  // so much indirection. is this expensive?
 
-        int bottom_right_ind = iz * gpu_grd->nyn * gpu_grd->nxn + iy * gpu_grd->nxn + ix;  // doing a funny, might be wrong
-        int top_left_ind = (iz - 1) * gpu_grd->nyn * gpu_grd->nxn + (iy - 1) * gpu_grd->nxn + (ix - 1);
+        int bottom_right_ind = ix * gpu_grd->nzn * gpu_grd->nyn + iy * gpu_grd->nzn + iz;
+        int top_left_ind = (ix - 1) * gpu_grd->nzn * gpu_grd->nyn + (iy - 1) * gpu_grd->nzn + (iz - 1);
 
         xi[0] = xptilde - gpu_grd->XN_GPU_flat[top_left_ind];
         eta[0] = yptilde - gpu_grd->YN_GPU_flat[top_left_ind];
@@ -58,17 +58,17 @@ __global__ void particle_push_kernel(struct GPUParticles* gpu_part, struct GPUEM
         eta[1] = yptilde - gpu_grd->YN_GPU_flat[bottom_right_ind];
         zeta[1] = zptilde - gpu_grd->ZN_GPU_flat[bottom_right_ind];
         
-        for (int ii = 0; ii < 2; ii++)  // another for loop... is weights[] a good idea?
+        for (int ii = 0; ii < 2; ii++)
             for (int jj = 0; jj < 2; jj++)
                 for (int kk = 0; kk < 2; kk++)
                         weight[ii * 4 + jj * 2 + kk] = xi[ii] * eta[jj] * zeta[kk] * gpu_grd->invVOL;
 
         Exl=0.0, Eyl = 0.0, Ezl = 0.0, Bxl = 0.0, Byl = 0.0, Bzl = 0.0;
 
-        for (int ii=0; ii < 2; ii++)  // ...
+        for (int ii=0; ii < 2; ii++)
             for (int jj=0; jj < 2; jj++)
                 for(int kk=0; kk < 2; kk++){
-                    int field_ind = (iz - kk) * gpu_grd->nyn * gpu_grd->nxn + (iy - jj) * gpu_grd->nxn + (ix - kk);  // TODO how are the flat arrays actually stored?
+                    int field_ind = (ix - ii) * gpu_grd->nzn * gpu_grd->nyn + (iy - jj) * gpu_grd->nzn + (iz - kk);  // unsure of indexing
                     int weight_ind = ii * 4 + jj * 2 + kk;
 
                     Exl += weight[weight_ind]*gpu_field->Ex_flat[field_ind];
@@ -97,7 +97,7 @@ __global__ void particle_push_kernel(struct GPUParticles* gpu_part, struct GPUEM
         zptilde = gpu_part->z[part_ind] + wptilde*dto2;
     }
 
-    gpu_part->u[part_ind] = 2.0*uptilde - gpu_part->u[part_ind];
+    gpu_part->u[part_ind] = 2.0*uptilde - gpu_part->u[part_ind];  // update global memory
     gpu_part->v[part_ind] = 2.0*vptilde - gpu_part->v[part_ind];
     gpu_part->w[part_ind] = 2.0*wptilde - gpu_part->w[part_ind];
 
@@ -105,7 +105,7 @@ __global__ void particle_push_kernel(struct GPUParticles* gpu_part, struct GPUEM
     gpu_part->y[part_ind] = gpu_part->y[part_ind] + vptilde * dt_sub_cycling;
     gpu_part->z[part_ind] = gpu_part->z[part_ind] + wptilde * dt_sub_cycling;
 
-    if (gpu_part->x[part_ind] > gpu_grd->Lx){  // this is a disgusting amount of memory accesses!
+    if (gpu_part->x[part_ind] > gpu_grd->Lx){  // this is a disgusting amount of memory accesses! do all this before actually saving stuff?
         if (gpu_param->PERIODICX==true){ // PERIODIC
             gpu_part->x[part_ind] = gpu_part->x[part_ind] - gpu_grd->Lx;
         } else { // REFLECTING BC

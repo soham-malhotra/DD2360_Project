@@ -29,7 +29,11 @@ struct GPUInterpDensSpecies {
     
 };
 
-struct GPUInterpDensSpecies* gpuInterpDensSpeciesAllocateAndCpy(const struct grid&, const struct interpDensSpecies&);
+struct GPUInterpDensSpecies* gpuInterpDensSpeciesAllocateAndCpyStatic(const struct grid& grid, const struct interpDensSpecies& interp_dens_species);
+
+void gpuInterpDensSpeciesCpyTo(const struct grid& grid, const struct interpDensSpecies& interp_dens_species, struct GPUInterpDensSpecies* gpu_interp_dens_species);
+
+void gpuInterpDensSpeciesCpyBack(const struct grid& grid, struct interpDensSpecies& interp_dens_species, const struct GPUInterpDensSpecies* gpu_interp_dens_species);
 
 void gpuInterpDensSpeciesDeallocate(struct GPUInterpDensSpecies*);
 
