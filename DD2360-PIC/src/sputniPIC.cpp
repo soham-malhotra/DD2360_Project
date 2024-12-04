@@ -38,7 +38,9 @@
 #include "RW_IO.h"
 
 // GPU functions
-#include "GPU_Pusher.h"
+#include "GPU_Mover.h"
+#include "GPU_Interpolator.h"
+#include "GPU_DensUtil.h"
 
 
 int main(int argc, char **argv){
@@ -87,8 +89,7 @@ int main(int argc, char **argv){
     // allocate and copy to GPU
     //TODO make sure copying actually works
     
-    GPUParameters* gpu_param = gpuParametersAllocateAndCpy(param);
-    GPUGrid* gpu_grid = gpuGridAllocateAndCpy(grd);
+    GPUGrid* gpu_grd = gpuGridAllocateAndCpy(grd);
 
     GPUEMfield* gpu_field = gpuFieldAllocate(grd);
     GPUInterpDensNet* gpu_idn = gpuInterpDensNetAllocate(grd);
@@ -102,48 +103,45 @@ int main(int argc, char **argv){
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
     // **********************************************************//
-    for (int cycle = param.first_cycle_n; cycle < (param.first_cycle_n + param.ncycles); cycle++) {
+    for (int cycle = param.first_cycle_n; cycle < (param.first_cycle_n + param.ncycles); cycle++) {  // TODO remember to also validate with 3d case
         
         std::cout << std::endl;
         std::cout << "***********************" << std::endl;
         std::cout << "   cycle = " << cycle << std::endl;
         std::cout << "***********************" << std::endl;
+
+        // copy values to gpu
+        gpuFieldCpyTo(grd, field, gpu_field);
+        gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
+        for (int is=0; is < param.ns; is++) {
+            gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
+            gpuParticleCpyTo(part[is], gpu_part[is]);
+        }
     
         // set to zero the densities - needed for interpolation
-        setZeroDensities(&idn,ids,&grd,param.ns);
-        
+        // setZeroDensities(&idn,ids,&grd,param.ns);
+        gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
         // // implicit mover
+        // iMover = cpuSecond(); // start timer for mover
+        // for (int is=0; is < param.ns; is++)
+        //     mover_PC(&part[is],&field,&grd,&param);
+        // eMover += (cpuSecond() - iMover); // stop timer for mover
+        // std::cout << "   Mover Time (s) = " << eMover << std::endl;
+        
+        // gpu mover test
         iMover = cpuSecond(); // start timer for mover
-        for (int is=0; is < param.ns; is++)
-            mover_PC(&part[is],&field,&grd,&param);
+        gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
         eMover += (cpuSecond() - iMover); // stop timer for mover
         std::cout << "   Mover Time (s) = " << eMover << std::endl;
 
-        // copy values to gpu
-        // gpuFieldCpyTo(grd, field, gpu_field);
-        // gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
-        // for (int is=0; is < param.ns; is++){
-        //     gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
-        //     gpuParticleCpyTo(part[is], gpu_part[is]);
-        // }
-        
-        // // gpu mover test
-        // iMover = cpuSecond(); // start timer for mover
-        // for (int is=0; is < param.ns; is++){
-        //     gpu_mover_PC(gpu_part[is], gpu_field, gpu_grid, gpu_param, &part[is], &field, &grd, &param);
-        //     cudaDeviceSynchronize();
-        // }
-        // eMover += (cpuSecond() - iMover); // stop timer for mover
-        // std::cout << "   Mover Time (s) = " << eMover << std::endl;
-
-        // // copy values to host
-        // gpuFieldCpyBack(grd, field, gpu_field);
-        // gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
-        // for (int is=0; is < param.ns; is++){
-        //     gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
-        //     gpuParticleCpyBack(part[is], gpu_part[is]);
-        // }
+        // copy values to host
+        gpuFieldCpyBack(grd, field, gpu_field);
+        gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
+        for (int is=0; is < param.ns; is++){
+            gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
+            gpuParticleCpyBack(part[is], gpu_part[is]);
+        }
 
         // interpolation particle to grid
         iInterp = cpuSecond(); // start timer for the interpolation step
@@ -153,6 +151,25 @@ int main(int argc, char **argv){
         // apply BC to interpolated densities
         for (int is=0; is < param.ns; is++)
             applyBCids(&ids[is],&grd,&param);
+
+        // // copy values to gpu
+        // gpuFieldCpyTo(grd, field, gpu_field);
+        // gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
+        // for (int is=0; is < param.ns; is++) {
+        //     gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
+        //     gpuParticleCpyTo(part[is], gpu_part[is]);
+        // }
+
+        // gpu_applyBCids(gpu_ids, gpu_grd, &param, &grd);  // TODO fix!
+
+        // // copy values to host
+        // gpuFieldCpyBack(grd, field, gpu_field);
+        // gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
+        // for (int is=0; is < param.ns; is++){
+        //     gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
+        //     gpuParticleCpyBack(part[is], gpu_part[is]);
+        // }
+
         // sum over species
         sumOverSpecies(&idn,ids,&grd,param.ns);
         // interpolate charge density from center to node
@@ -174,8 +191,7 @@ int main(int argc, char **argv){
 
     // clean up on GPU side
     //TODO make sure deallocation actually works. There must be some tool to check for memory leaks?
-    gpuParametersDeallocate(gpu_param);
-    gpuGridDeallocate(gpu_grid);
+    gpuGridDeallocate(gpu_grd);
     gpuFieldDeallocate(gpu_field);
     gpuInterpDensNetDeallocate(gpu_idn);
     for (int is=0; is < param.ns; is++){

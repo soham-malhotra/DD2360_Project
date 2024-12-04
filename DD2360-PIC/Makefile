@@ -4,7 +4,7 @@ CXX=g++
 CXXFLAGS=-std=c++11 -I./include -g -O0 -g -Xcompiler -Wall
 
 NVCC=nvcc
-ARCH=sm_60
+ARCH=sm_86
 NVCCFLAGS= -I./include -arch=$(ARCH) -std=c++11 -G -g -O0 -g -Xcompiler -Wall --compiler-bindir=$(CXX)
 
 SRCDIR=src
