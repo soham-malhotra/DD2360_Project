@@ -1,6 +1,8 @@
 #include "GPU_InterpDensNet.h"
 
-void gpuInterpDensNetAllocateAndCpy(const struct grid& grid, struct GPUInterpDensNet* gpu_interp_dens_net, const struct interpDensNet& interp_dens_net) {
+struct GPUInterpDensNet* gpuInterpDensNetAllocateAndCpy(const struct grid& grid, const struct interpDensNet& interp_dens_net) {
+    GPUInterpDensNet* gpu_interp_dens_net = nullptr;
+
     // define field array size
     size_t size = grid.nxn * grid.nyn * grid.nzn * sizeof(FPinterp);  // number of nodes
     size_t size_c = grid.nxc * grid.nyc * grid.nzc * sizeof(FPinterp); // number of cells
@@ -24,25 +26,30 @@ void gpuInterpDensNetAllocateAndCpy(const struct grid& grid, struct GPUInterpDen
     copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pyy_flat), interp_dens_net.pyy_flat, size);
     copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pyz_flat), interp_dens_net.pyz_flat, size);
     copyArrayToDeviceStruct<FPfield>(&(gpu_interp_dens_net->pzz_flat), interp_dens_net.pzz_flat, size);
+
+    return gpu_interp_dens_net;
 }
 
 void gpuInterpDensNetDeallocate(struct GPUInterpDensNet* gpu_interp_dens_net) {
+    GPUInterpDensNet temp_interp_dens_net;
+    cudaErrorHandling(cudaMemcpy(&temp_interp_dens_net, gpu_interp_dens_net, sizeof(GPUInterpDensNet), cudaMemcpyDeviceToHost));
+
     //deallocate densities
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->rhon_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->rhoc_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.rhon_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.rhoc_flat));
 
     //deallocate currents
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jx_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jy_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->Jz_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.Jx_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.Jy_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.Jz_flat));
 
     //deallocate pressure tensor
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxx_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxy_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pxz_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pyy_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pyz_flat));
-    cudaErrorHandling(cudaFree(gpu_interp_dens_net->pzz_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pxx_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pxy_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pxz_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pyy_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pyz_flat));
+    cudaErrorHandling(cudaFree(temp_interp_dens_net.pzz_flat));
 
     //deallocate device memory for the grid
     cudaErrorHandling(cudaFree(gpu_interp_dens_net));
