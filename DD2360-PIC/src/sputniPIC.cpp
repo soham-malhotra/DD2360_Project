@@ -109,6 +109,10 @@ int main(int argc, char **argv){
         std::cout << "***********************" << std::endl;
         std::cout << "   cycle = " << cycle << std::endl;
         std::cout << "***********************" << std::endl;
+    
+        // set to zero the densities - needed for interpolation
+        setZeroDensities(&idn,ids,&grd,param.ns);
+        // gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
         // copy values to gpu
         gpuFieldCpyTo(grd, field, gpu_field);
@@ -117,23 +121,13 @@ int main(int argc, char **argv){
             gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
             gpuParticleCpyTo(part[is], gpu_part[is]);
         }
-    
-        // set to zero the densities - needed for interpolation
-        // setZeroDensities(&idn,ids,&grd,param.ns);
-        gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
-        // // implicit mover
-        // iMover = cpuSecond(); // start timer for mover
         // for (int is=0; is < param.ns; is++)
         //     mover_PC(&part[is],&field,&grd,&param);
+        // iMover = cpuSecond(); // start timer for mover
+        gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
         // eMover += (cpuSecond() - iMover); // stop timer for mover
         // std::cout << "   Mover Time (s) = " << eMover << std::endl;
-        
-        // gpu mover test
-        iMover = cpuSecond(); // start timer for mover
-        gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
-        eMover += (cpuSecond() - iMover); // stop timer for mover
-        std::cout << "   Mover Time (s) = " << eMover << std::endl;
 
         // copy values to host
         gpuFieldCpyBack(grd, field, gpu_field);
@@ -145,38 +139,38 @@ int main(int argc, char **argv){
 
         // interpolation particle to grid
         iInterp = cpuSecond(); // start timer for the interpolation step
-        // interpolate species
         for (int is=0; is < param.ns; is++)
             interpP2G(&part[is],&ids[is],&grd);
+
+        // copy values to gpu
+        gpuFieldCpyTo(grd, field, gpu_field);
+        gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
+        for (int is=0; is < param.ns; is++) {
+            gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
+            gpuParticleCpyTo(part[is], gpu_part[is]);
+        }
+        
         // apply BC to interpolated densities
-        for (int is=0; is < param.ns; is++)
-            applyBCids(&ids[is],&grd,&param);
-
-        // // copy values to gpu
-        // gpuFieldCpyTo(grd, field, gpu_field);
-        // gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
-        // for (int is=0; is < param.ns; is++) {
-        //     gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
-        //     gpuParticleCpyTo(part[is], gpu_part[is]);
-        // }
-
-        // gpu_applyBCids(gpu_ids, gpu_grd, &param, &grd);  // TODO fix!
-
-        // // copy values to host
-        // gpuFieldCpyBack(grd, field, gpu_field);
-        // gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
-        // for (int is=0; is < param.ns; is++){
-        //     gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
-        //     gpuParticleCpyBack(part[is], gpu_part[is]);
-        // }
+        // for (int is=0; is < param.ns; is++)
+        //     applyBCids(&ids[is],&grd,&param);
+        gpu_applyBCids(gpu_ids, gpu_grd, &param, &grd);
 
         // sum over species
-        sumOverSpecies(&idn,ids,&grd,param.ns);
+        // sumOverSpecies(&idn,ids,&grd,param.ns);
+        gpu_sumOverSpecies(gpu_idn, gpu_ids, gpu_grd, &param, &grd);
+
         // interpolate charge density from center to node
-        applyBCscalarDensN(idn.rhon,&grd,&param);
+        // applyBCscalarDensN(idn.rhon,&grd,&param);
+        gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd);
         
-        
-        
+        // copy values to host
+        gpuFieldCpyBack(grd, field, gpu_field);
+        gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
+        for (int is=0; is < param.ns; is++){
+            gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
+            gpuParticleCpyBack(part[is], gpu_part[is]);
+        }
+
         // write E, B, rho to disk
         if (cycle%param.FieldOutputCycle==0){
             VTK_Write_Vectors(cycle, &grd,&field);

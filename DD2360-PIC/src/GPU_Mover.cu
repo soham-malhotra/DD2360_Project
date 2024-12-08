@@ -1,4 +1,5 @@
 #include "GPU_Mover.h"
+#include <assert.h>
 
 #define THREAD_NR 16.0
 
@@ -99,13 +100,13 @@ __global__ void mover_PC_kernel(struct GPUParticles* gpu_part, struct GPUEMfield
         zptilde = zinit + wptilde*dto2;
     }
 
-    uptilde = 2.0*uptilde - uinit;  // update global memory
-    vptilde = 2.0*vptilde - vinit;
-    wptilde = 2.0*wptilde - winit;
-
-    xptilde = xinit + uptilde * dt_sub_cycling;
+    xptilde = xinit + uptilde * dt_sub_cycling;  // final positions
     yptilde = yinit + vptilde * dt_sub_cycling;
     zptilde = zinit + wptilde * dt_sub_cycling;
+
+    uptilde = 2.0*uptilde - uinit;  // final velocities, no longer at 1/2 time
+    vptilde = 2.0*vptilde - vinit;
+    wptilde = 2.0*wptilde - winit;
 
     if (xptilde > gpu_grd->Lx){  // control divergence!
         if (param.PERIODICX==true){ // PERIODIC
