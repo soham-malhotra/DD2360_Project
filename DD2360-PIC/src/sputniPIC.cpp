@@ -99,6 +99,14 @@ int main(int argc, char **argv){
         gpu_ids[is] = gpuInterpDensSpeciesAllocateAndCpyStatic(grd, ids[is]);
         gpu_part[is] = gpuParticleAllocateAndCpyStatic(part[is]);
     }
+
+    // copy values to gpu
+    gpuFieldCpyTo(grd, field, gpu_field);
+    gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
+    for (int is=0; is < param.ns; is++) {
+        gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
+        gpuParticleCpyTo(part[is], gpu_part[is]);
+    }
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -111,16 +119,8 @@ int main(int argc, char **argv){
         std::cout << "***********************" << std::endl;
     
         // set to zero the densities - needed for interpolation
-        setZeroDensities(&idn,ids,&grd,param.ns);
-        // gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
-
-        // copy values to gpu
-        gpuFieldCpyTo(grd, field, gpu_field);
-        gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
-        for (int is=0; is < param.ns; is++) {
-            gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
-            gpuParticleCpyTo(part[is], gpu_part[is]);
-        }
+        // setZeroDensities(&idn,ids,&grd,param.ns);
+        gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
         // for (int is=0; is < param.ns; is++)
         //     mover_PC(&part[is],&field,&grd,&param);
@@ -129,26 +129,11 @@ int main(int argc, char **argv){
         // eMover += (cpuSecond() - iMover); // stop timer for mover
         // std::cout << "   Mover Time (s) = " << eMover << std::endl;
 
-        // copy values to host
-        gpuFieldCpyBack(grd, field, gpu_field);
-        gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
-        for (int is=0; is < param.ns; is++){
-            gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
-            gpuParticleCpyBack(part[is], gpu_part[is]);
-        }
-
         // interpolation particle to grid
-        iInterp = cpuSecond(); // start timer for the interpolation step
-        for (int is=0; is < param.ns; is++)
-            interpP2G(&part[is],&ids[is],&grd);
-
-        // copy values to gpu
-        gpuFieldCpyTo(grd, field, gpu_field);
-        gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
-        for (int is=0; is < param.ns; is++) {
-            gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
-            gpuParticleCpyTo(part[is], gpu_part[is]);
-        }
+        // iInterp = cpuSecond(); // start timer for the interpolation step
+        // for (int is=0; is < param.ns; is++)
+        //     interpP2G(&part[is],&ids[is],&grd);
+        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &param);
         
         // apply BC to interpolated densities
         // for (int is=0; is < param.ns; is++)
@@ -161,27 +146,20 @@ int main(int argc, char **argv){
 
         // interpolate charge density from center to node
         // applyBCscalarDensN(idn.rhon,&grd,&param);
-        gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd);
-        
-        // copy values to host
-        gpuFieldCpyBack(grd, field, gpu_field);
-        gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
-        for (int is=0; is < param.ns; is++){
-            gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
-            gpuParticleCpyBack(part[is], gpu_part[is]);
-        }
-
-        // write E, B, rho to disk
-        if (cycle%param.FieldOutputCycle==0){
-            VTK_Write_Vectors(cycle, &grd,&field);
-            VTK_Write_Scalars(cycle, &grd,ids,&idn);
-        }
-        
-        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
-        
-        
-    
+        gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd, &param);
     }  // end of one PIC cycle
+
+    // copy values to host
+    gpuFieldCpyBack(grd, field, gpu_field);
+    gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
+    for (int is=0; is < param.ns; is++){
+        gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
+        gpuParticleCpyBack(part[is], gpu_part[is]);
+    }
+
+    // write E, B, rho to disk
+    VTK_Write_Vectors(param.ncycles, &grd,&field);
+    VTK_Write_Scalars(param.ncycles, &grd,ids,&idn);
 
     // clean up on GPU side
     //TODO make sure deallocation actually works. There must be some tool to check for memory leaks?

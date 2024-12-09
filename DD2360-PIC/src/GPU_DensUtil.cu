@@ -5,7 +5,7 @@
 #define THREAD_NR_PER_Z 1.0
 
 void gpu_setZeroDensities(struct GPUInterpDensSpecies** gpu_ids, struct GPUInterpDensNet* gpu_idn, struct GPUGrid* gpu_grd, struct parameters* param, struct grid* grd) {
-
+    // TODO we are copying parameters to constant memory every single kernel call. this is not a good approach
     dim3 dimBlock(THREAD_NR_PER_X, THREAD_NR_PER_Y, THREAD_NR_PER_Z);
     dim3 dimGridNode(ceil(grd->nxn/THREAD_NR_PER_X), ceil(grd->nyn/THREAD_NR_PER_Y), ceil(grd->nzn/THREAD_NR_PER_Z));
     dim3 dimGridCell(ceil(grd->nxc/THREAD_NR_PER_X), ceil(grd->nyc/THREAD_NR_PER_Y), ceil(grd->nzc/THREAD_NR_PER_Z));
@@ -27,7 +27,7 @@ void gpu_setZeroDensities(struct GPUInterpDensSpecies** gpu_ids, struct GPUInter
 void gpu_applyBCids(struct GPUInterpDensSpecies** gpu_ids,  struct GPUGrid* gpu_grd, parameters* param, struct grid* grd) {
     // The same corner points are modified by differenc BCs. This has to be done in the exact order as the original code.
     // As entire grids cannot be synced from within kernel code, for the current approach, 6 different kernel calls are needed...
-    // TODO Still might not be exact for some reason!
+    // TODO hopefully merge all this into one kernel, but not a priority
 
     dim3 dimBlock(THREAD_NR_PER_X, THREAD_NR_PER_Y, THREAD_NR_PER_Z);
     dim3 dimGrid(ceil(grd->nxn/THREAD_NR_PER_X), ceil(grd->nyn/THREAD_NR_PER_Y), ceil(grd->nzn/THREAD_NR_PER_Z));
@@ -50,11 +50,31 @@ void gpu_applyBCids(struct GPUInterpDensSpecies** gpu_ids,  struct GPUGrid* gpu_
 }
 
 // boundary conditions for ghost nodes
-void gpu_applyBCscalarDensN(struct GPUInterpDensNet* gpu_idn, struct GPUGrid* gpu_grd, struct grid* grd) {
-
+void gpu_applyBCscalarDensN(struct GPUInterpDensNet* gpu_idn, struct GPUGrid* gpu_grd, struct grid* grd, struct parameters* param) {
+    // TODO the same applies here as above
     dim3 dimBlock(THREAD_NR_PER_X, THREAD_NR_PER_Y, THREAD_NR_PER_Z);
     dim3 dimGrid(ceil(grd->nxn/THREAD_NR_PER_X), ceil(grd->nyn/THREAD_NR_PER_Y), ceil(grd->nzn/THREAD_NR_PER_Z));
 
+    applyBCscalarDensN_periodicX<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_periodicY<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_periodicZ<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_edgeX<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_edgeY<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_edgeZ<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_corners<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_nonPeriodicX<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_nonPeriodicY<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
+    applyBCscalarDensN_nonPeriodicZ<<<dimGrid, dimBlock>>>(gpu_idn, gpu_grd, *param);
+    cudaDeviceSynchronize();
 }
 
 void gpu_sumOverSpecies(struct GPUInterpDensNet* gpu_idn, struct GPUInterpDensSpecies** gpu_ids, struct GPUGrid* gpu_grd, struct parameters* param, struct grid* grd) {
@@ -237,5 +257,168 @@ __global__ void sumOverSpeciesNode_kernel(struct GPUInterpDensNet* idn, struct G
         idn->Jx_flat[ind] += ids->Jx_flat[ind];
         idn->Jy_flat[ind] += ids->Jy_flat[ind];
         idn->Jz_flat[ind] += ids->Jz_flat[ind];
+    }
+}
+
+__global__ void applyBCscalarDensN_periodicX(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (param.PERIODICX && ix == 1 && iy < ny - 1 && iz < nz - 1) {
+        idn->rhon_flat[0 * ny * nz + iy * nz + iz] = idn->rhon_flat[(nx - 2) * ny * nz + iy * nz + iz];
+        idn->rhon_flat[(nx - 1) * ny * nz + iy * nz + iz] = idn->rhon_flat[1 * ny * nz + iy * nz + iz];
+    }
+}
+
+__global__ void applyBCscalarDensN_periodicY(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (param.PERIODICY && iy == 1 && ix < nx - 1 && iz < nz - 1) {
+        idn->rhon_flat[ix * ny * nz + 0 * nz + iz] = idn->rhon_flat[ix * ny * nz + (ny - 2) * nz + iz];
+        idn->rhon_flat[ix * ny * nz + (ny - 1) * nz + iz] = idn->rhon_flat[ix * ny * nz + 1 * nz + iz];
+    }
+}
+
+__global__ void applyBCscalarDensN_periodicZ(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (param.PERIODICZ && iz == 1 && ix < nx - 1 && iy < ny - 1) {
+        idn->rhon_flat[ix * ny * nz + iy * nz + 0] = idn->rhon_flat[ix * ny * nz + iy * nz + (nz - 2)];
+        idn->rhon_flat[ix * ny * nz + iy * nz + (nz - 1)] = idn->rhon_flat[ix * ny * nz + iy * nz + 1];
+    }
+}
+
+__global__ void applyBCscalarDensN_edgeX(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int nx = gpu_grd->nxn;
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+
+    if ((param.PERIODICY==true || param.PERIODICZ==true) && ix < nx - 1 && iy == 1 && iz == 1) {
+        idn->rhon_flat[ix * ny * nz + (ny - 1) * nz + (nz - 1)] = idn->rhon_flat[ix * ny * nz + 1 * nz + 1];
+        idn->rhon_flat[ix * ny * nz + 0 * nz + 0] = idn->rhon_flat[ix * ny * nz + (ny - 2) * nz + (nz - 2)];
+        idn->rhon_flat[ix * ny * nz + 0 * nz + (nz - 1)] = idn->rhon_flat[ix * ny * nz + (ny - 2) * nz + 1];
+        idn->rhon_flat[ix * ny * nz + (ny - 1) * nz + 0] = idn->rhon_flat[ix * ny * nz + 1 * nz + (nz - 2)];
+    }
+}
+
+__global__ void applyBCscalarDensN_edgeY(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int nx = gpu_grd->nxn;
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+
+    if ((param.PERIODICX==true || param.PERIODICZ==true) && iy < ny - 1 && ix == 1 && iz == 1) {
+        idn->rhon_flat[(nx - 1) * ny * nz + iy * nz + (nz - 1)] = idn->rhon_flat[1 * ny * nz + iy * nz + 1];
+        idn->rhon_flat[0 * ny * nz + iy * nz + 0] = idn->rhon_flat[(nx - 2) * ny * nz + iy * nz + (nz - 2)];
+        idn->rhon_flat[0 * ny * nz + iy * nz + (nz - 1)] = idn->rhon_flat[(nx - 2) * ny * nz + iy * nz + 1];
+        idn->rhon_flat[(nx - 1) * ny * nz + iy * nz + 0] = idn->rhon_flat[1 * ny * nz + iy * nz + (nz - 2)];
+    }
+}
+
+__global__ void applyBCscalarDensN_edgeZ(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int nx = gpu_grd->nxn;
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+
+    if ((param.PERIODICX==true || param.PERIODICY==true) && iz < nz - 1 && ix == 1 && iy == 1) {
+        idn->rhon_flat[(nx - 1) * ny * nz + (ny - 1) * nz + iz] = idn->rhon_flat[1 * ny * nz + 1 * nz + iz];
+        idn->rhon_flat[0 * ny * nz + 0 * nz + iz] = idn->rhon_flat[(nx - 2) * ny * nz + (ny - 2) * nz + iz];
+        idn->rhon_flat[0 * ny * nz + (ny - 1) * nz + iz] = idn->rhon_flat[(nx - 2) * ny * nz + 1 * nz + iz];
+        idn->rhon_flat[(nx - 1) * ny * nz + 0 * nz + iz] = idn->rhon_flat[1 * ny * nz + (ny - 2) * nz + iz];
+    }
+}
+
+__global__ void applyBCscalarDensN_corners(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int nx = gpu_grd->nxn;
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+
+    if (ix == 1 && iy == 1 && iz == 1) {  // use a single thread to handle all the corners
+        idn->rhon_flat[(nx-1) * ny * nz + (ny-1) * nz + (nz-1)] = idn->rhon_flat[1 * ny * nz + 1 * nz + 1];
+        idn->rhon_flat[0 * ny * nz + (ny-1) * nz + (nz-1)] = idn->rhon_flat[(nx-2) * ny * nz + 1 * nz + 1];
+        idn->rhon_flat[(nx-1) * ny * nz + 0 * nz + (nz-1)] = idn->rhon_flat[1 * ny * nz + (ny-2) * nz + 1];
+        idn->rhon_flat[0 * ny * nz + 0 * nz + (nz-1)] = idn->rhon_flat[(nx-2) * ny * nz + (ny-2) * nz + 1];
+        idn->rhon_flat[(nx-1) * ny * nz + (ny-1) * nz + 0] = idn->rhon_flat[1 * ny * nz + 1 * nz + (nz-2)];
+        idn->rhon_flat[0 * ny * nz + (ny-1) * nz + 0] = idn->rhon_flat[(nx-2) * ny * nz + 1 * nz + (nz-2)];
+        idn->rhon_flat[(nx-1) * ny * nz + 0 * nz + 0] = idn->rhon_flat[1 * ny * nz + (ny-2) * nz + (nz-2)];
+        idn->rhon_flat[0 * ny * nz + 0 * nz + 0] = idn->rhon_flat[(nx-2) * ny * nz + (ny-2) * nz + (nz-2)];
+    }
+
+}
+
+__global__ void applyBCscalarDensN_nonPeriodicX(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (!param.PERIODICX && ix == 1 && iy < ny - 1 && iz < nz - 1) {
+        idn->rhon_flat[0 * ny * nz + iy * nz + iz] = 0;
+        idn->rhon_flat[(nx - 1) * ny * nz + iy * nz + iz] = 0;
+    }
+}
+
+__global__ void applyBCscalarDensN_nonPeriodicY(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (!param.PERIODICY && iy == 1 && ix < nx - 1 && iz < nz - 1) {
+        idn->rhon_flat[ix * ny * nz + 0 * nz + iz] = 0;
+        idn->rhon_flat[ix * ny * nz + (ny - 1) * nz + iz] = 0;
+    }
+}
+
+__global__ void applyBCscalarDensN_nonPeriodicZ(struct GPUInterpDensNet* idn, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x + 1;
+    int iy = blockIdx.y * blockDim.y + threadIdx.y + 1;
+    int iz = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+    int ny = gpu_grd->nyn;
+    int nz = gpu_grd->nzn;
+    int nx = gpu_grd->nxn;
+
+    if (!param.PERIODICZ && iz == 1 && ix < nx - 1 && iy < ny - 1) {
+        idn->rhon_flat[ix * ny * nz + iy * nz + 0] = 0;
+        idn->rhon_flat[ix * ny * nz + iy * nz + (nz - 1)] = 0;
     }
 }
