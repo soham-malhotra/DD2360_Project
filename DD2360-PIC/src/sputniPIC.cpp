@@ -7,6 +7,7 @@
 #include "PrecisionTypes.h"
 // Simulation Parameter - structure
 #include "Parameters.h"
+#include "GPU_Parameters.h"
 // Grid structure
 #include "Grid.h"
 #include "GPU_Grid.h"
@@ -14,14 +15,18 @@
 // Interpolated Quantities Structures
 #include "InterpDensSpecies.h"
 #include "InterpDensNet.h"
+#include "GPU_InterpDensSpecies.h"
+#include "GPU_InterpDensNet.h"
 
 // Field structure
 #include "EMfield.h" // Just E and Bn
 #include "EMfield_aux.h" // Bc, Phi, Eth, D
+#include "GPU_EMfield.h"
 
 // Particles structure
 #include "Particles.h"
 #include "Particles_aux.h" // Needed only if dointerpolation on GPU - avoid reduction on GPU
+#include "GPU_Particles.h"
 
 // Initial Condition
 #include "IC.h"
@@ -31,6 +36,11 @@
 #include "Timing.h"
 // Read and output operations
 #include "RW_IO.h"
+
+// GPU functions
+#include "GPU_Mover.h"
+#include "GPU_Interpolator.h"
+#include "GPU_DensUtil.h"
 
 
 int main(int argc, char **argv){
@@ -49,9 +59,6 @@ int main(int argc, char **argv){
     // Set-up the grid information
     grid grd;
     setGrid(&param, &grd);
-
-    //create gpu_grid
-    GPUgrid gpu_grid = *grid;
     
     // Allocate Fields
     EMfield field;
@@ -78,12 +85,33 @@ int main(int argc, char **argv){
     
     // Initialization
     initGEM(&param,&grd,&field,&field_aux,part,ids);
+
+    // allocate and copy to GPU
+    //TODO make sure copying actually works
     
+    GPUGrid* gpu_grd = gpuGridAllocateAndCpy(grd);
+
+    GPUEMfield* gpu_field = gpuFieldAllocate(grd);
+    GPUInterpDensNet* gpu_idn = gpuInterpDensNetAllocate(grd);
+    GPUInterpDensSpecies** gpu_ids = new GPUInterpDensSpecies*[param.ns];
+    GPUParticles** gpu_part = new GPUParticles*[param.ns];  // all pointers to gpu quantities, including per species, live on host
+    for (int is=0; is < param.ns; is++){
+        gpu_ids[is] = gpuInterpDensSpeciesAllocateAndCpyStatic(grd, ids[is]);
+        gpu_part[is] = gpuParticleAllocateAndCpyStatic(part[is]);
+    }
+
+    // copy values to gpu
+    gpuFieldCpyTo(grd, field, gpu_field);
+    gpuInterpDensNetCpyTo(grd, idn, gpu_idn);
+    for (int is=0; is < param.ns; is++) {
+        gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
+        gpuParticleCpyTo(part[is], gpu_part[is]);
+    }
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
     // **********************************************************//
-    for (int cycle = param.first_cycle_n; cycle < (param.first_cycle_n + param.ncycles); cycle++) {
+    for (int cycle = param.first_cycle_n; cycle < (param.first_cycle_n + param.ncycles); cycle++) {  // TODO remember to also validate with 3d case
         
         std::cout << std::endl;
         std::cout << "***********************" << std::endl;
@@ -91,44 +119,60 @@ int main(int argc, char **argv){
         std::cout << "***********************" << std::endl;
     
         // set to zero the densities - needed for interpolation
-        setZeroDensities(&idn,ids,&grd,param.ns);
-        
+        // setZeroDensities(&idn,ids,&grd,param.ns);
+        gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
-        // implicit mover
-        iMover = cpuSecond(); // start timer for mover
-        for (int is=0; is < param.ns; is++)
-            mover_PC(&part[is],&field,&grd,&param);
-        eMover += (cpuSecond() - iMover); // stop timer for mover
-        
-        
-        
-        
+        // for (int is=0; is < param.ns; is++)
+        //     mover_PC(&part[is],&field,&grd,&param);
+        // iMover = cpuSecond(); // start timer for mover
+        gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
+        // eMover += (cpuSecond() - iMover); // stop timer for mover
+        // std::cout << "   Mover Time (s) = " << eMover << std::endl;
+
         // interpolation particle to grid
-        iInterp = cpuSecond(); // start timer for the interpolation step
-        // interpolate species
-        for (int is=0; is < param.ns; is++)
-            interpP2G(&part[is],&ids[is],&grd);
+        // iInterp = cpuSecond(); // start timer for the interpolation step
+        // for (int is=0; is < param.ns; is++)
+        //     interpP2G(&part[is],&ids[is],&grd);
+        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &param);
+        
         // apply BC to interpolated densities
-        for (int is=0; is < param.ns; is++)
-            applyBCids(&ids[is],&grd,&param);
+        // for (int is=0; is < param.ns; is++)
+        //     applyBCids(&ids[is],&grd,&param);
+        gpu_applyBCids(gpu_ids, gpu_grd, &param, &grd);
+
         // sum over species
-        sumOverSpecies(&idn,ids,&grd,param.ns);
+        // sumOverSpecies(&idn,ids,&grd,param.ns);
+        gpu_sumOverSpecies(gpu_idn, gpu_ids, gpu_grd, &param, &grd);
+
         // interpolate charge density from center to node
-        applyBCscalarDensN(idn.rhon,&grd,&param);
-        
-        
-        
-        // write E, B, rho to disk
-        if (cycle%param.FieldOutputCycle==0){
-            VTK_Write_Vectors(cycle, &grd,&field);
-            VTK_Write_Scalars(cycle, &grd,ids,&idn);
-        }
-        
-        eInterp += (cpuSecond() - iInterp); // stop timer for interpolation
-        
-        
-    
+        // applyBCscalarDensN(idn.rhon,&grd,&param);
+        gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd, &param);
     }  // end of one PIC cycle
+
+    // copy values to host
+    gpuFieldCpyBack(grd, field, gpu_field);
+    gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
+    for (int is=0; is < param.ns; is++){
+        gpuInterpDensSpeciesCpyBack(grd, ids[is], gpu_ids[is]);
+        gpuParticleCpyBack(part[is], gpu_part[is]);
+    }
+
+    // write E, B, rho to disk
+    VTK_Write_Vectors(param.ncycles, &grd,&field);
+    VTK_Write_Scalars(param.ncycles, &grd,ids,&idn);
+
+    // clean up on GPU side
+    //TODO make sure deallocation actually works. There must be some tool to check for memory leaks?
+    gpuGridDeallocate(gpu_grd);
+    gpuFieldDeallocate(gpu_field);
+    gpuInterpDensNetDeallocate(gpu_idn);
+    for (int is=0; is < param.ns; is++){
+        gpuInterpDensSpeciesDeallocate(gpu_ids[is]);
+        gpuParticleDeallocate(gpu_part[is]);
+    }
+    // dellocate dynamically stored pointers to GPU
+    delete[] gpu_ids;
+    delete[] gpu_part;
     
     /// Release the resources
     // deallocate field

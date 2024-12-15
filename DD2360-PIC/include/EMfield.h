@@ -1,4 +1,4 @@
-#ifndef EMFIELD_H
+ #ifndef EMFIELD_H
 #define EMFIELD_H
 
 #include "Alloc.h"

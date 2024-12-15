@@ -5,7 +5,7 @@
 #include "cudaAux.h"
 
 /** Grid Data */
-struct GPUgrid {
+struct GPUGrid {
     /** number of cells - X direction, including + 2 (guard cells) */
     int nxc;
     /** number of nodes - X direction, including + 2 extra nodes for guard cells */
@@ -51,62 +51,25 @@ struct GPUgrid {
     FPfield* YN_GPU_flat;
     /** coordinate node Z */
     FPfield* ZN_GPU_flat;
-
-    // Assignment operator to copy from a grid object
-    /** equality operator to copy */
-    GPUgrid& operator=(const grid& src) {
-        nxc = src.nxc;
-        nxn = src.nxn;
-        nyc = src.nyc;
-        nyn = src.nyn;
-        nzc = src.nzc;
-        nzn = src.nzn;
-
-        dx = src.dx;
-        dy = src.dy;
-        dz = src.dz;
-
-        invdx = src.invdx;
-        invdy = src.invdy;
-        invdz = src.invdz;
-        invVOL = src.invVOL;
-
-        xStart = src.xStart;
-        xEnd = src.xEnd;
-        yStart = src.yStart;
-        yEnd = src.yEnd;
-        zStart = src.zStart;
-        zEnd = src.zEnd;
-
-        Lx = src.Lx;
-        Ly = src.Ly;
-        Lz = src.Lz;
-
-        PERIODICX = src.PERIODICX;
-        PERIODICY = src.PERIODICY;
-        PERIODICZ = src.PERIODICZ;
-
-        size_t size = nxn * nyn * nzn;
-
-        cudaErrorHandling(cudaMalloc(XN_GPU_flat, size));
-        cudaErrorHandling(cudaMalloc(YN_GPU_flat, size));
-        cudaErrorHandling(cudaMalloc(ZN_GPU_flat, size));
-
-        cudaErrorHandling(cudaMemCpy(XN_GPU_flat, src.XN_flat, size, MemcpyHostToDevice));
-        cudaErrorHandling(cudaMemCpy(YN_GPU_flat, src.YN_flat, size, MemcpyHostToDevice));
-        cudaErrorHandling(cudaMemCpy(ZN_GPU_flat, src.ZN_flat, size, MemcpyHostToDevice));
-
-        return *this;
-    }
-
-
 };
+
+/**
+ * @brief: allocates memory on device and copies data from host to device
+ * @param: gpu_grid -> pointer to the pointer that points to the grid on device memory
+ * @param: grid -> pointer to host memory
+ */
+struct GPUGrid* gpuGridAllocateAndCpy(const struct grid&);
 
 /**
  * @brief: deallocates memory allocated for GPUGrid
  * @param: gpu_grid -> the grid to deallocate
  */
-void deallocateGPUGrid(GPUgrid* gpu_grid) {
-}
+void gpuGridDeallocate(struct GPUGrid*);
+
+/**
+ * @brief: assigns all static members of grid to gpu_grid
+ * @param: gpu_grid -> reference to grid object on host
+ */
+void copyStaticMembers(const grid& grd, GPUGrid& gpu_grd);
 
 #endif

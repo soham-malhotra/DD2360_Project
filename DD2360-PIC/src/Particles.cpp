@@ -161,7 +161,6 @@ int mover_PC(struct particles* part, struct EMfield* field, struct grid* grd, st
             part->y[i] = yptilde + vptilde*dt_sub_cycling;
             part->z[i] = zptilde + wptilde*dt_sub_cycling;
             
-            
             //////////
             //////////
             ////////// BC
@@ -223,9 +222,6 @@ int mover_PC(struct particles* part, struct EMfield* field, struct grid* grd, st
                     part->z[i] = -part->z[i];
                 }
             }
-                                                                        
-            
-            
         }  // end of subcycling
     } // end of one particle
                                                                         
