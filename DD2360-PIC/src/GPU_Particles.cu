@@ -36,6 +36,9 @@ struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct particles& par
     allocateDeviceArray<FPpart>(&gpu_particles->v, size_arr);
     allocateDeviceArray<FPpart>(&gpu_particles->w, size_arr);
 
+    // allocate and initialize indices
+    allocateDeviceArray<int>(&gpu_particles->cell_id, particles.npmax * sizeof(int));  // not initialized!
+
     // allocate charges (+ statistical weights)
     allocateAndCpyDeviceArray<FPpart>(&gpu_particles->q, particles.q, size_arr);
 
@@ -92,6 +95,9 @@ void gpuParticleDeallocate(struct GPUParticles* gpu_particles) {
 
     //deallocate charges
     cudaErrorHandling(cudaFree(temp_particles.q));
+
+    //deallocate cell indices
+    cudaErrorHandling(cudaFree(temp_particles.cell_id));
 
     //deallocate the struct itself
     cudaErrorHandling(cudaFree(gpu_particles));

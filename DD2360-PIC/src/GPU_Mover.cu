@@ -1,6 +1,6 @@
 #include "GPU_Mover.h"
 
-#define THREAD_NR 16.0
+#define THREAD_NR 256.0
 
 void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct particles** part, struct parameters* param) {
 
