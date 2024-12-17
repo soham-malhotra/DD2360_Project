@@ -133,7 +133,7 @@ int main(int argc, char **argv){
         // iInterp = cpuSecond(); // start timer for the interpolation step
         // for (int is=0; is < param.ns; is++)
         //     interpP2G(&part[is],&ids[is],&grd);
-        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &param);
+        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &grd, &param);
         
         // apply BC to interpolated densities
         // for (int is=0; is < param.ns; is++)

@@ -165,7 +165,12 @@ __global__ void mover_PC_kernel(struct GPUParticles* gpu_part, struct GPUEMfield
         gpu_part->x[part_ind] = xptilde;
         gpu_part->y[part_ind] = yptilde;
         gpu_part->z[part_ind] = zptilde;
-        
+
+        ix = 1 + int((xptilde - gpu_grd->xStart)*gpu_grd->invdx);  // for sorting!
+        iy = 1 + int((yptilde - gpu_grd->yStart)*gpu_grd->invdy);
+        iz = 1 + int((zptilde - gpu_grd->zStart)*gpu_grd->invdz);
+
+        gpu_part->cell_id[part_ind] = ix * gpu_grd->nzn * gpu_grd->nyn + iy * gpu_grd->nzn + iz;
     }
     
 }
