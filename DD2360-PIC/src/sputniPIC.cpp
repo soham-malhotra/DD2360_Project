@@ -107,6 +107,10 @@ int main(int argc, char **argv){
         gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
         gpuParticleCpyTo(part[is], gpu_part[is]);
     }
+
+    // print grid nodes
+    printf("Grid cell dimensions are %d x %d x %d\n", grd.nxc, grd.nyc, grd.nzc);
+    printf("Grid node dimensions are %d x %d x %d\n", grd.nxn, grd.nyn, grd.nzn);
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //

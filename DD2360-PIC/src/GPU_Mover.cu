@@ -1,4 +1,5 @@
 #include "GPU_Mover.h"
+#include <assert.h>
 
 #define THREAD_NR 256.0
 
@@ -170,7 +171,11 @@ __global__ void mover_PC_kernel(struct GPUParticles* gpu_part, struct GPUEMfield
         iy = 1 + int((yptilde - gpu_grd->yStart)*gpu_grd->invdy);
         iz = 1 + int((zptilde - gpu_grd->zStart)*gpu_grd->invdz);
 
-        gpu_part->cell_id[part_ind] = ix * gpu_grd->nzn * gpu_grd->nyn + iy * gpu_grd->nzn + iz;
+        if (ix == gpu_grd->nxc - 1) ix = gpu_grd->nxc - 2;  // for a particle being right on the edge
+        if (iy == gpu_grd->nyc - 1) iy = gpu_grd->nyc - 2;
+        if (iz == gpu_grd->nzc - 1) iz = gpu_grd->nzc - 2;
+
+        gpu_part->cell_id[part_ind] = ix * gpu_grd->nzc * gpu_grd->nyc + iy * gpu_grd->nzc + iz;
     }
     
 }
