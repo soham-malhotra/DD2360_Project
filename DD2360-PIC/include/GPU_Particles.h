@@ -1,7 +1,7 @@
 #ifndef GPU_PARTICLES_H
 #define GPU_PARTICLES_H
 
-#define MAX_PART_PER_CELL 1000
+#define MAX_PART_PER_CELL 200
 
 #include "Alloc.h"
 #include "Particles.h"

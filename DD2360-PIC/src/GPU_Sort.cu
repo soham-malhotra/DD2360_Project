@@ -16,7 +16,8 @@ void gpu_sort_particles(struct GPUParticles** gpu_part, struct particles* part, 
         cudaErrorHandling(cudaMemcpy(&cell_counter_ptr, &(gpu_part[is]->cell_counter), sizeof(int*), cudaMemcpyDeviceToHost));  // TODO cringe
         cudaErrorHandling(cudaMemset(cell_counter_ptr, 0, grd->nxc * grd->nyc * grd->nzc * sizeof(int)));
 
-        categorize_kernel<<<gridSize, blockSize>>>(*gpu_part);
+        categorize_kernel<<<gridSize, blockSize>>>(gpu_part[is]);
+        cudaDeviceSynchronize();
     }
 }
 
