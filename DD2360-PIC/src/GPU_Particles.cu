@@ -1,6 +1,6 @@
 #include "GPU_Particles.h"
 
-struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct particles& particles) {
+struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct grid& grd, const struct particles& particles) {
     GPUParticles* gpu_particles = nullptr;
 
     size_t size_arr = particles.npmax * sizeof(FPpart);  // size of particle position and velocity arrays
@@ -36,11 +36,25 @@ struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct particles& par
     allocateDeviceArray<FPpart>(&gpu_particles->v, size_arr);
     allocateDeviceArray<FPpart>(&gpu_particles->w, size_arr);
 
+    // allocate charges (+ statistical weights)
+    allocateAndCpyDeviceArray<FPpart>(&gpu_particles->q, particles.q, size_arr);
+
     // allocate and initialize indices
     allocateDeviceArray<int>(&gpu_particles->cell_id, particles.npmax * sizeof(int));  // not initialized!
 
-    // allocate charges (+ statistical weights)
-    allocateAndCpyDeviceArray<FPpart>(&gpu_particles->q, particles.q, size_arr);
+    // allocate cell counter
+    int n_cells = grd.nxc * grd.nyc * grd.nzc;
+    allocateDeviceArray<int>(&gpu_particles->cell_counter, n_cells * sizeof(int));
+
+    // allocate cell arrays
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_x, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_y, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_z, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_u, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_v, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+    allocateDeviceArray<FPpart>(&gpu_particles->cell_w, n_cells * MAX_PART_PER_CELL * sizeof(FPpart));
+
+    allocateDeviceArray<FPinterp>(&gpu_particles->cell_q, n_cells * MAX_PART_PER_CELL * sizeof(FPinterp));
 
     return gpu_particles;
 }
@@ -98,6 +112,19 @@ void gpuParticleDeallocate(struct GPUParticles* gpu_particles) {
 
     //deallocate cell indices
     cudaErrorHandling(cudaFree(temp_particles.cell_id));
+
+    //deallocate cell counter
+    cudaErrorHandling(cudaFree(temp_particles.cell_counter));
+
+    //deallocate cell arrays
+    cudaErrorHandling(cudaFree(temp_particles.cell_x));
+    cudaErrorHandling(cudaFree(temp_particles.cell_y));
+    cudaErrorHandling(cudaFree(temp_particles.cell_z));
+    cudaErrorHandling(cudaFree(temp_particles.cell_u));
+    cudaErrorHandling(cudaFree(temp_particles.cell_v));
+    cudaErrorHandling(cudaFree(temp_particles.cell_w));
+
+    cudaErrorHandling(cudaFree(temp_particles.cell_q));
 
     //deallocate the struct itself
     cudaErrorHandling(cudaFree(gpu_particles));

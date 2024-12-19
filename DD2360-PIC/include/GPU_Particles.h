@@ -1,6 +1,8 @@
 #ifndef GPU_PARTICLES_H
 #define GPU_PARTICLES_H
 
+#define MAX_PART_PER_CELL 1000
+
 #include "Alloc.h"
 #include "Particles.h"
 #include "cudaAux.h"
@@ -43,10 +45,13 @@ struct GPUParticles {
     /** q must have precision of interpolated quantities: typically double. Not used in mover */
     FPinterp* q;
 
-    int* cell_id;
+    int* cell_id;  // stored which cell each particle is in, has length nop
+    int* cell_counter;  // stored how many particles are in each cell, has length grd.nxc * grd.nyc * grd.nzc
+    FPpart *cell_x, *cell_y, *cell_z, *cell_u, *cell_v, *cell_w;  // 2d arrays, each row is a cell, each column is a particle in that cell
+    FPinterp *cell_q;  // contiguous blocks! (boundaries not enforced)
 };
 
-struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct particles& particles);
+struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct grid& grd, const struct particles& particles);
 
 void gpuParticleCpyTo(const struct particles& particles, struct GPUParticles* gpu_particles);
 

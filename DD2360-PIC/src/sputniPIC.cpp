@@ -41,6 +41,7 @@
 #include "GPU_Mover.h"
 #include "GPU_Interpolator.h"
 #include "GPU_DensUtil.h"
+#include "GPU_Sort.h"
 
 
 int main(int argc, char **argv){
@@ -97,7 +98,7 @@ int main(int argc, char **argv){
     GPUParticles** gpu_part = new GPUParticles*[param.ns];  // all pointers to gpu quantities, including per species, live on host
     for (int is=0; is < param.ns; is++){
         gpu_ids[is] = gpuInterpDensSpeciesAllocateAndCpyStatic(grd, ids[is]);
-        gpu_part[is] = gpuParticleAllocateAndCpyStatic(part[is]);
+        gpu_part[is] = gpuParticleAllocateAndCpyStatic(grd, part[is]);
     }
 
     // copy values to gpu
@@ -132,6 +133,8 @@ int main(int argc, char **argv){
         gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
         // eMover += (cpuSecond() - iMover); // stop timer for mover
         // std::cout << "   Mover Time (s) = " << eMover << std::endl;
+
+        gpu_sort_particles(gpu_part, part, &param, &grd);
 
         // interpolation particle to grid
         // iInterp = cpuSecond(); // start timer for the interpolation step
