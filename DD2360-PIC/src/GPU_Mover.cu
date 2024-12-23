@@ -19,8 +19,8 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
 
         for (int i_sub = 0; i_sub < (*part)[is].n_sub_cycles; i_sub++) {
             // Launch kernel in species-specific stream
-            FPpart dt_sub_cycling = (FPpart) param.dt/((double) gpu_part->n_sub_cycles);
-            FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/param.c;  
+            FPpart dt_sub_cycling = (FPpart) param->dt/((double) gpu_part[is]->n_sub_cycles);
+            FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part[is]->qom*dto2/param.c;  
 
             mover_PC_kernel<<<gridSize, blockSize, 0, streams[is]>>>(
                 gpu_part[is],    // Species-specific particle data
