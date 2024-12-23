@@ -2,7 +2,7 @@
 
 #define THREAD_NR 128.0
 
-// implement a kernel for sorting the particle arrays here!
+// implement a kernel for sorting the particle arrays here, called once before the mover
 
 void gpu_sort_particles(struct GPUParticles** gpu_part, struct particles* part, struct parameters* param, struct grid* grd) {
 
@@ -36,3 +36,4 @@ __global__ void categorize_kernel(struct GPUParticles* gpu_part) {
     gpu_part->cell_w[cell_id * MAX_PART_PER_CELL + cell_pos] = gpu_part->w[part_ind];
     gpu_part->cell_q[cell_id * MAX_PART_PER_CELL + cell_pos] = gpu_part->q[part_ind];
 }
+

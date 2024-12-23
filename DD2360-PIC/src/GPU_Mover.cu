@@ -4,24 +4,60 @@
 #define THREAD_NR 256.0
 
 void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct particles** part, struct parameters* param) {
+    // Create array to store streams for each species
+    cudaStream_t* streams = new cudaStream_t[param->ns];
+    
+    // Create a stream for each species
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamCreate(&streams[is]);
+    }
 
-    for (int is=0; is < param->ns; is++){
-
+    // Launch kernels for each species in their respective streams
+    for (int is = 0; is < param->ns; is++) {
         int blockSize = THREAD_NR;
         int gridSize = ceil((*part)[is].nop / blockSize);
 
-        for (int i_sub=0; i_sub < (*part)[is].n_sub_cycles; i_sub++) {
-            mover_PC_kernel<<<gridSize, blockSize>>>(gpu_part[is], gpu_field, gpu_grd, *param);  // param sent to constant memory. is this worth it? it's being transferred from host to device every loop. grid is too big to save
-            cudaDeviceSynchronize();
+        for (int i_sub = 0; i < (*part)[is].n_sub_cycles; i_sub++) {
+            // Launch kernel in species-specific stream
+            FPpart dt_sub_cycling = (FPpart) param.dt/((double) gpu_part->n_sub_cycles);
+            FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/param.c;  
+
+            mover_PC_kernel<<<gridSize, blockSize, 0, streams[is]>>>(
+                gpu_part[is],    // Species-specific particle data
+                gpu_field,       // Shared field data
+                gpu_grd,        // Shared grid data
+                *param,            // Shared parameters
+                qomdt2,         // Species-specific constants
+                dt_sub_cycling,
+                dto2         
+            );
+            
         }
     }
-}  // make different species run in parallel? subcycles themselves for the same species have to be sequential
 
-__global__ void mover_PC_kernel(struct GPUParticles* gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+    // Wait for all streams to complete
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamSynchronize(streams[is]);
+    }
 
-    FPpart dt_sub_cycling = (FPpart) param.dt/((double) gpu_part->n_sub_cycles);
-    FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/param.c;  // TODO these are species specific -> move outside kernel?
+    // Cleanup streams
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamDestroy(streams[is]);
+    }
+    delete[] streams;
 
+    // Check for any errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+    }
+}
+
+__global__ void mover_PC_kernel(struct GPUParticles* gpu_part, 
+struct GPUEMfield* gpu_field, 
+struct GPUGrid* gpu_grd, 
+__grid_constant__ const struct parameters param,
+const FPpart qomdt2, const FPpart dt_sub_cycling, const FPpart dto2) {
     long part_ind = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (part_ind < gpu_part->nop) {
