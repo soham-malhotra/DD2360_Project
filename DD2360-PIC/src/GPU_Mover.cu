@@ -17,7 +17,7 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
         int blockSize = THREAD_NR;
         int gridSize = ceil((*part)[is].nop / blockSize);
 
-        for (int i_sub = 0; i < (*part)[is].n_sub_cycles; i_sub++) {
+        for (int i_sub = 0; i_sub < (*part)[is].n_sub_cycles; i_sub++) {
             // Launch kernel in species-specific stream
             FPpart dt_sub_cycling = (FPpart) param.dt/((double) gpu_part->n_sub_cycles);
             FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part->qom*dto2/param.c;  
