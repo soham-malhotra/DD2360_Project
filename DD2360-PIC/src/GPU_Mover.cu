@@ -19,6 +19,11 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
 
         for (int i_sub = 0; i_sub < (*part)[is].n_sub_cycles; i_sub++) {
             // Launch kernel in species-specific stream
+            printf("part %d\n", (*part)[is].n_sub_cycles);
+            printf("gpu part %d\n", gpu_part[is]->n_sub_cycles);
+            printf("another way of writing it %d\n", (*gpu_part)[is].n_sub_cycles);
+            printf("param delta time %f\n", param->dt);
+
             FPpart dt_sub_cycling = (FPpart) param->dt/((double) gpu_part[is]->n_sub_cycles);
             FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part[is]->qom*dto2/param->c;  
 
