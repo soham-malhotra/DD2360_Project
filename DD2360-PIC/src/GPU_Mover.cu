@@ -16,16 +16,16 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
     for (int is = 0; is < param->ns; is++) {
         int blockSize = THREAD_NR;
         int gridSize = ceil((*part)[is].nop / blockSize);
-
-        for (int i_sub = 0; i_sub < (*part)[is].n_sub_cycles; i_sub++) {
+        int num_sub_cycles = (*part)[is].n_sub_cycles;
+        for (int i_sub = 0; i_sub < num_sub_cycles; i_sub++) {
             // Launch kernel in species-specific stream
-            printf("part %d\n", (*part)[is].n_sub_cycles);
-            printf("gpu part %d\n", gpu_part[is]->n_sub_cycles);
-            printf("another way of writing it %d\n", (*gpu_part)[is].n_sub_cycles);
-            printf("param delta time %f\n", param->dt);
+            printf("part %d\n", num_sub_cycles);
+            //printf("gpu part %d\n", gpu_part[is]->n_sub_cycles);
+            //printf("another way of writing it %d\n", (*gpu_part)[is].n_sub_cycles);
+            //printf("param delta time %f\n", param->dt);
 
-            FPpart dt_sub_cycling = (FPpart) param->dt/((double) gpu_part[is]->n_sub_cycles);
-            FPpart dto2 = .5*dt_sub_cycling, qomdt2 = gpu_part[is]->qom*dto2/param->c;  
+            FPpart dt_sub_cycling = (FPpart) param->dt/((double) num_sub_cycles);
+            FPpart dto2 = .5*dt_sub_cycling, qomdt2 = part[is]->qom*dto2/param->c;  
 
             mover_PC_kernel<<<gridSize, blockSize, 0, streams[is]>>>(
                 gpu_part[is],    // Species-specific particle data
