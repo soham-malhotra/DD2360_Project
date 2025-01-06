@@ -5,7 +5,7 @@
 
 void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, struct GPUGrid* gpu_grd, struct particles** part, struct parameters* param) {
     // Create array to store streams for each species
-    cudaStream_t* streams = new cudaStream_t[param->ns];
+    cudaStream_t streams[param->ns];
     
     // Create a stream for each species
     for (int is = 0; is < param->ns; is++) {
@@ -19,11 +19,7 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
         int num_sub_cycles = (*part)[is].n_sub_cycles;
         for (int i_sub = 0; i_sub < num_sub_cycles; i_sub++) {
             // Launch kernel in species-specific stream
-            printf("part %d\n", num_sub_cycles);
-            //printf("gpu part %d\n", gpu_part[is]->n_sub_cycles);
-            //printf("another way of writing it %d\n", (*gpu_part)[is].n_sub_cycles);
-            //printf("param delta time %f\n", param->dt);
-
+            printf("Launching kernel for species %d, subcycle %d\n", is, i_sub);
             FPpart dt_sub_cycling = (FPpart) param->dt/((double) num_sub_cycles);
             FPpart dto2 = .5*dt_sub_cycling, qomdt2 = part[is]->qom*dto2/param->c;  
 
@@ -49,7 +45,6 @@ void gpu_mover_PC(struct GPUParticles** gpu_part, struct GPUEMfield* gpu_field, 
     for (int is = 0; is < param->ns; is++) {
         cudaStreamDestroy(streams[is]);
     }
-    delete[] streams;
 
     // Check for any errors
     cudaError_t err = cudaGetLastError();

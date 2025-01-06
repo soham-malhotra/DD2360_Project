@@ -51,12 +51,25 @@ struct GPUParticles {
     FPinterp *cell_q;  // contiguous blocks! (boundaries not enforced)
 };
 
+
 struct GPUParticles* gpuParticleAllocateAndCpyStatic(const struct grid& grd, const struct particles& particles);
 
+/**
+ * @brief: ports particles to GPU
+ * @param: particles -> the particles to port
+ */
 void gpuParticleCpyTo(const struct particles& particles, struct GPUParticles* gpu_particles);
 
+/**
+ * @brief: ports particles back to CPU
+ * @param: particles -> the particles to port back
+ */
 void gpuParticleCpyBack(struct particles& particles, const struct GPUParticles* gpu_particles);
 
+/**
+ * @brief: deallocates particles on GPU
+ * @param: particles -> the particles to deallocate
+ */
 void gpuParticleDeallocate(struct GPUParticles*);
 
 #endif

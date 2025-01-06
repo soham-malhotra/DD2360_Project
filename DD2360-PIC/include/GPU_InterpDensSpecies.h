@@ -31,10 +31,26 @@ struct GPUInterpDensSpecies {
 
 struct GPUInterpDensSpecies* gpuInterpDensSpeciesAllocateAndCpyStatic(const struct grid& grid, const struct interpDensSpecies& interp_dens_species);
 
+/**
+ * @brief Allocate and copy dynamic data of the struct interpDensSpecies to the GPU
+ * @param grid: grid information
+ * @param interp_dens_species: interpolated densities of species
+ * @param 
+ */
 void gpuInterpDensSpeciesCpyTo(const struct grid& grid, const struct interpDensSpecies& interp_dens_species, struct GPUInterpDensSpecies* gpu_interp_dens_species);
 
+/**
+ * @brief Copy back dynamic data of the struct interpDensSpecies from the GPU to the CPU
+ * @param grid: grid information
+ * @param interp_dens_species: interpolated densities of species
+ * @param : GPU struct
+ */
 void gpuInterpDensSpeciesCpyBack(const struct grid& grid, struct interpDensSpecies& interp_dens_species, const struct GPUInterpDensSpecies* gpu_interp_dens_species);
 
+/**
+ * @brief Deallocate the dynamic data of the struct GPUInterpDensSpecies
+ * @param 
+ */
 void gpuInterpDensSpeciesDeallocate(struct GPUInterpDensSpecies*);
 
 
