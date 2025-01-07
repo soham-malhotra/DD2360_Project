@@ -116,6 +116,7 @@ int main(int argc, char **argv){
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
     // **********************************************************//
+    iMover = cpuSecond();
     for (int cycle = param.first_cycle_n; cycle < (param.first_cycle_n + param.ncycles); cycle++) {  // TODO remember to also validate with 3d case
         
         std::cout << std::endl;
@@ -127,13 +128,7 @@ int main(int argc, char **argv){
         // setZeroDensities(&idn,ids,&grd,param.ns);
         gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
-        for (int is=0; is < param.ns; is++) {
-        //     mover_PC(&part[is],&field,&grd,&param);
-        iMover = cpuSecond(); // start timer for mover
         gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
-        eMover += (cpuSecond() - iMover); // stop timer for mover
-        std::cout << "   Mover Time GPU (s) = " << eMover << std::endl;
-        }
 
         gpu_sort_particles(gpu_part, part, &param, &grd);
 
@@ -156,7 +151,8 @@ int main(int argc, char **argv){
         // applyBCscalarDensN(idn.rhon,&grd,&param);
         gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd, &param);
     }  // end of one PIC cycle
-
+    eTime = cpuSecond() - iMover;
+    printf("Time for Mover = %f s\n", eTime);
     // copy values to host
     gpuFieldCpyBack(grd, field, gpu_field);
     gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
