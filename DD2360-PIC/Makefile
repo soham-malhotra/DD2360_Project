@@ -1,11 +1,12 @@
 # From https://x.momo86.net/?p=29
 
 CXX=g++
-CXXFLAGS=-std=c++11 -I./include -g -O0 -g -Xcompiler -Wall
+CXXFLAGS=-std=c++11 -I./include -g -O3 -g -Xcompiler -Wall
 
 NVCC=nvcc
 ARCH=sm_86
-NVCCFLAGS= -I./include -arch=$(ARCH) -std=c++11 -G -g -O0 -g -Xcompiler -Wall --compiler-bindir=$(CXX)
+NVCCFLAGS= -I./include -gencode arch=compute_75,code=sm_75 \
+             -gencode arch=compute_86,code=sm_86 -std=c++11 -G -g -O3 -g -Xcompiler -Wall --compiler-bindir=$(CXX)
 
 SRCDIR=src
 SRCS=$(shell find $(SRCDIR) -name '*.cu' -o -name '*.cpp')

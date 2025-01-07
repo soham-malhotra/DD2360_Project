@@ -1,54 +1,93 @@
 #include "GPU_Interpolator.h"
+#include "GPU_Particles.h"
+#include <assert.h>
 
-#define THREAD_NR 16.0
+#define THREAD_NR 128  // multiple of 32
+#define PART_SIZE_TEMP 128
 
-void gpu_interpP2G(struct GPUParticles** gpu_part, struct GPUInterpDensSpecies** gpu_ids, struct GPUGrid* gpu_grd, struct particles** part, struct parameters* param) {
-
-    for (int is=0; is < param->ns; is++){
-
-        int blockSize = THREAD_NR;
-        int gridSize = ceil((*part)[is].nop / blockSize);
-
-        interpP2G_kernel<<<gridSize, blockSize>>>(gpu_part[is], gpu_ids[is], gpu_grd, *param);
-        cudaDeviceSynchronize();
+void gpu_interpP2G(struct GPUParticles** gpu_part, struct GPUInterpDensSpecies** gpu_ids, struct GPUGrid* gpu_grd, struct particles** part, struct grid* grd, struct parameters* param) {
+    // Create array to store streams for each species
+    cudaStream_t streams[param->ns];
+    
+    // Create a stream for each species
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamCreate(&streams[is]);
     }
 
+    // Launch kernels for each species in their respective streams
+    for (int is=0; is < param->ns; is++){
+        int blockSize = THREAD_NR;
+        dim3 gridSize(grd->nxc - 2, grd->nyc - 2, grd->nzc - 2);  // exclude ghost cells, as there are no particles there anyways
+        interpP2G_kernel<<<gridSize, blockSize, 0, streams[is]>>>(gpu_part[is], gpu_ids[is], gpu_grd);
+    }
+
+    // Wait for all streams to complete
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamSynchronize(streams[is]);
+    }
+
+    // Cleanup streams
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamDestroy(streams[is]);
+    }
+
+    // Check for any errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
+    }
 }
 
-__global__ void interpP2G_kernel(struct GPUParticles* gpu_part, struct GPUInterpDensSpecies* gpu_ids, struct GPUGrid* gpu_grd, __grid_constant__ const struct parameters param) {
+__global__ void interpP2G_kernel(struct GPUParticles* gpu_part, struct GPUInterpDensSpecies* gpu_ids, struct GPUGrid* gpu_grd) {
 
-    long part_ind = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (part_ind < gpu_part->nop) {
+    __shared__ FPfield XN[2], YN[2], ZN[2];  // let's have each thread individually load its particles for now
+    __shared__ int cell_index, numGroups, groupPartSize;
 
-        int ix, iy, iz;
-        FPpart weight;
-        FPpart xi[2], eta[2], zeta[2];
+    if (threadIdx.x == 0) {  // this is faster than anything nicer for some reason
+        XN[0] = gpu_grd->XN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
+        YN[0] = gpu_grd->YN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
+        ZN[0] = gpu_grd->ZN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
+        XN[1] = gpu_grd->XN_GPU_flat[(blockIdx.x + 2) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 2) * gpu_grd->nzn + (blockIdx.z + 2)];
+        YN[1] = gpu_grd->YN_GPU_flat[(blockIdx.x + 2) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 2) * gpu_grd->nzn + (blockIdx.z + 2)];
+        ZN[1] = gpu_grd->ZN_GPU_flat[(blockIdx.x + 2) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 2) * gpu_grd->nzn + (blockIdx.z + 2)];
 
-        ix = 2 + int((gpu_part->x[part_ind] - gpu_grd->xStart)*gpu_grd->invdx);
-        iy = 2 + int((gpu_part->y[part_ind] - gpu_grd->yStart)*gpu_grd->invdy);
-        iz = 2 + int((gpu_part->z[part_ind] - gpu_grd->zStart)*gpu_grd->invdz);
-
-        int bottom_right_ind = ix * gpu_grd->nzn * gpu_grd->nyn + iy * gpu_grd->nzn + iz;
-        int top_left_ind = (ix - 1) * gpu_grd->nzn * gpu_grd->nyn + (iy - 1) * gpu_grd->nzn + (iz - 1);
-
-        xi[0] = gpu_part->x[part_ind] - gpu_grd->XN_GPU_flat[top_left_ind];
-        eta[0] = gpu_part->y[part_ind] - gpu_grd->YN_GPU_flat[top_left_ind];
-        zeta[0] = gpu_part->z[part_ind] - gpu_grd->ZN_GPU_flat[top_left_ind];
-        xi[1] = gpu_grd->XN_GPU_flat[bottom_right_ind] - gpu_part->x[part_ind];
-        eta[1] = gpu_grd->YN_GPU_flat[bottom_right_ind] - gpu_part->y[part_ind];
-        zeta[1] = gpu_grd->ZN_GPU_flat[bottom_right_ind] - gpu_part->z[part_ind];
-
-        for (int ii=0; ii<2; ii++) {
-            for (int jj=0; jj<2; jj++) {
-                for (int kk=0; kk<2; kk++) {
-                    weight = gpu_part->q[part_ind] * xi[ii] * eta[jj] * zeta[kk] * gpu_grd->invVOL;
-                    atomicAdd(&(gpu_ids->rhon_flat[(ix - ii) * gpu_grd->nzn * gpu_grd->nyn + (iy - jj) * gpu_grd->nzn + (iz - kk)]), weight * gpu_grd->invVOL);
-                    atomicAdd(&(gpu_ids->Jx_flat[(ix - ii) * gpu_grd->nzn * gpu_grd->nyn + (iy - jj) * gpu_grd->nzn + (iz - kk)]), weight * gpu_part->u[part_ind] * gpu_grd->invVOL);
-                    atomicAdd(&(gpu_ids->Jy_flat[(ix - ii) * gpu_grd->nzn * gpu_grd->nyn + (iy - jj) * gpu_grd->nzn + (iz - kk)]), weight * gpu_part->v[part_ind] * gpu_grd->invVOL);
-                    atomicAdd(&(gpu_ids->Jz_flat[(ix - ii) * gpu_grd->nzn * gpu_grd->nyn + (iy - jj) * gpu_grd->nzn + (iz - kk)]), weight * gpu_part->w[part_ind] * gpu_grd->invVOL);
-                }
-            }
-        }
+        cell_index = (blockIdx.x + 1) * gpu_grd->nyc * gpu_grd->nzc + (blockIdx.y + 1) * gpu_grd->nzc + (blockIdx.z + 1);
+        numGroups = blockDim.x / 8;
+        groupPartSize = gpu_part->cell_counter[cell_index] / numGroups;
     }
+
+    __syncthreads();  // TODO not sure if necessary?
+
+    FPfield accumulateRho = 0;
+    FPfield accumulateJx = 0;
+    FPfield accumulateJy = 0;
+    FPfield accumulateJz = 0;
+
+    int groupId = threadIdx.x / 8;
+
+    int start_index = cell_index * MAX_PART_PER_CELL + groupId * groupPartSize;
+    int end_index = (groupId == numGroups - 1) ? cell_index * MAX_PART_PER_CELL + gpu_part->cell_counter[cell_index] : start_index + groupPartSize;
+    
+    int nodeId = threadIdx.x & 7;  // faster than % 8
+    int i = nodeId >> 2;           // faster than / 4
+    int j = (nodeId >> 1) & 1;     // faster than (nodeId % 4) / 2
+    int k = nodeId & 1;            // faster than % 2
+    
+    FPfield temp_inc = gpu_grd -> invVOL * gpu_grd -> invVOL * ((i + j + k == 1 || i + j + k == 3) ? -1.0 : 1.0);
+
+    for(long part_ind = start_index; part_ind < end_index; part_ind++) {
+
+        FPfield temp = gpu_part->cell_q[part_ind] * temp_inc * (gpu_part->cell_x[part_ind] - XN[i]) * (gpu_part->cell_y[part_ind] - YN[j]) * (gpu_part->cell_z[part_ind] - ZN[k]);
+
+        accumulateRho += temp;
+        accumulateJx += temp * gpu_part->cell_u[part_ind];
+        accumulateJy += temp * gpu_part->cell_v[part_ind];
+        accumulateJz += temp * gpu_part->cell_w[part_ind];
+    }
+
+    int flatIndex = ((blockIdx.x + 2) - i) * gpu_grd->nzn * gpu_grd->nyn + ((blockIdx.y + 2) - j) * gpu_grd->nzn + ((blockIdx.z + 2) - k);
+    atomicAdd(&(gpu_ids->rhon_flat[flatIndex]), accumulateRho);
+    atomicAdd(&(gpu_ids->Jx_flat[flatIndex]), accumulateJx);
+    atomicAdd(&(gpu_ids->Jy_flat[flatIndex]), accumulateJy);
+    atomicAdd(&(gpu_ids->Jz_flat[flatIndex]), accumulateJz);
 }

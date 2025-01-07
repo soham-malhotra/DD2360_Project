@@ -41,6 +41,7 @@
 #include "GPU_Mover.h"
 #include "GPU_Interpolator.h"
 #include "GPU_DensUtil.h"
+#include "GPU_Sort.h"
 
 
 int main(int argc, char **argv){
@@ -97,7 +98,7 @@ int main(int argc, char **argv){
     GPUParticles** gpu_part = new GPUParticles*[param.ns];  // all pointers to gpu quantities, including per species, live on host
     for (int is=0; is < param.ns; is++){
         gpu_ids[is] = gpuInterpDensSpeciesAllocateAndCpyStatic(grd, ids[is]);
-        gpu_part[is] = gpuParticleAllocateAndCpyStatic(part[is]);
+        gpu_part[is] = gpuParticleAllocateAndCpyStatic(grd, part[is]);
     }
 
     // copy values to gpu
@@ -107,6 +108,10 @@ int main(int argc, char **argv){
         gpuInterpDensSpeciesCpyTo(grd, ids[is], gpu_ids[is]);
         gpuParticleCpyTo(part[is], gpu_part[is]);
     }
+
+    // print grid nodes
+    printf("Grid cell dimensions are %d x %d x %d\n", grd.nxc, grd.nyc, grd.nzc);
+    printf("Grid node dimensions are %d x %d x %d\n", grd.nxn, grd.nyn, grd.nzn);
     
     // **********************************************************//
     // **** Start the Simulation!  Cycle index start from 1  *** //
@@ -129,11 +134,13 @@ int main(int argc, char **argv){
         // eMover += (cpuSecond() - iMover); // stop timer for mover
         // std::cout << "   Mover Time (s) = " << eMover << std::endl;
 
+        gpu_sort_particles(gpu_part, part, &param, &grd);
+
         // interpolation particle to grid
         // iInterp = cpuSecond(); // start timer for the interpolation step
         // for (int is=0; is < param.ns; is++)
         //     interpP2G(&part[is],&ids[is],&grd);
-        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &param);
+        gpu_interpP2G(gpu_part, gpu_ids, gpu_grd, &part, &grd, &param);
         
         // apply BC to interpolated densities
         // for (int is=0; is < param.ns; is++)
