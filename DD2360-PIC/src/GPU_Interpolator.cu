@@ -6,14 +6,35 @@
 #define PART_SIZE_TEMP 128
 
 void gpu_interpP2G(struct GPUParticles** gpu_part, struct GPUInterpDensSpecies** gpu_ids, struct GPUGrid* gpu_grd, struct particles** part, struct grid* grd, struct parameters* param) {
+    // Create array to store streams for each species
+    cudaStream_t streams[param->ns];
+    
+    // Create a stream for each species
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamCreate(&streams[is]);
+    }
 
+    // Launch kernels for each species in their respective streams
     for (int is=0; is < param->ns; is++){
-
         int blockSize = THREAD_NR;
         dim3 gridSize(grd->nxc - 2, grd->nyc - 2, grd->nzc - 2);  // exclude ghost cells, as there are no particles there anyways
+        interpP2G_kernel<<<gridSize, blockSize, 0, streams[is]>>>(gpu_part[is], gpu_ids[is], gpu_grd);
+    }
 
-        interpP2G_kernel<<<gridSize, blockSize>>>(gpu_part[is], gpu_ids[is], gpu_grd);
-        cudaDeviceSynchronize();
+    // Wait for all streams to complete
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamSynchronize(streams[is]);
+    }
+
+    // Cleanup streams
+    for (int is = 0; is < param->ns; is++) {
+        cudaStreamDestroy(streams[is]);
+    }
+
+    // Check for any errors
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s\n", cudaGetErrorString(err));
     }
 }
 
