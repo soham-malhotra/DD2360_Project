@@ -151,8 +151,8 @@ int main(int argc, char **argv){
         // applyBCscalarDensN(idn.rhon,&grd,&param);
         gpu_applyBCscalarDensN(gpu_idn, gpu_grd, &grd, &param);
     }  // end of one PIC cycle
-    double eMover = cpuSecond() - iMover;
-    printf("Time for Mover = %f s\n", eTime);
+    eMover = cpuSecond() - iMover;
+    printf("Time for Mover = %f s\n", eMover);
     // copy values to host
     gpuFieldCpyBack(grd, field, gpu_field);
     gpuInterpDensNetCpyBack(grd, idn, gpu_idn);
