@@ -2,8 +2,6 @@
 
 #define THREAD_NR 128.0
 
-// implement a kernel for sorting the particle arrays here, called once before the mover
-
 void gpu_sort_particles(struct GPUParticles** gpu_part, struct particles* part, struct parameters* param, struct grid* grd) {
 
     for (int is=0; is < param->ns; is++) {
@@ -13,7 +11,7 @@ void gpu_sort_particles(struct GPUParticles** gpu_part, struct particles* part, 
 
         // reset cell counter
         int* cell_counter_ptr;  // copy pointer to host
-        cudaErrorHandling(cudaMemcpy(&cell_counter_ptr, &(gpu_part[is]->cell_counter), sizeof(int*), cudaMemcpyDeviceToHost));  // TODO cringe
+        cudaErrorHandling(cudaMemcpy(&cell_counter_ptr, &(gpu_part[is]->cell_counter), sizeof(int*), cudaMemcpyDeviceToHost));
         cudaErrorHandling(cudaMemset(cell_counter_ptr, 0, grd->nxc * grd->nyc * grd->nzc * sizeof(int)));
 
         categorize_kernel<<<gridSize, blockSize>>>(gpu_part[is]);

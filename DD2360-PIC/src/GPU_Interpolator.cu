@@ -40,10 +40,10 @@ void gpu_interpP2G(struct GPUParticles** gpu_part, struct GPUInterpDensSpecies**
 
 __global__ void interpP2G_kernel(struct GPUParticles* gpu_part, struct GPUInterpDensSpecies* gpu_ids, struct GPUGrid* gpu_grd) {
 
-    __shared__ FPfield XN[2], YN[2], ZN[2];  // let's have each thread individually load its particles for now
+    __shared__ FPfield XN[2], YN[2], ZN[2];
     __shared__ int cell_index, numGroups, groupPartSize;
 
-    if (threadIdx.x == 0) {  // this is faster than anything nicer for some reason
+    if (threadIdx.x == 0) {
         XN[0] = gpu_grd->XN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
         YN[0] = gpu_grd->YN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
         ZN[0] = gpu_grd->ZN_GPU_flat[(blockIdx.x + 1) * gpu_grd->nzn * gpu_grd->nyn + (blockIdx.y + 1) * gpu_grd->nzn + (blockIdx.z + 1)];
@@ -56,7 +56,7 @@ __global__ void interpP2G_kernel(struct GPUParticles* gpu_part, struct GPUInterp
         groupPartSize = gpu_part->cell_counter[cell_index] / numGroups;
     }
 
-    __syncthreads();  // TODO not sure if necessary?
+    __syncthreads();
 
     FPfield accumulateRho = 0;
     FPfield accumulateJx = 0;
@@ -68,10 +68,10 @@ __global__ void interpP2G_kernel(struct GPUParticles* gpu_part, struct GPUInterp
     int start_index = cell_index * MAX_PART_PER_CELL + groupId * groupPartSize;
     int end_index = (groupId == numGroups - 1) ? cell_index * MAX_PART_PER_CELL + gpu_part->cell_counter[cell_index] : start_index + groupPartSize;
     
-    int nodeId = threadIdx.x & 7;  // faster than % 8
-    int i = nodeId >> 2;           // faster than / 4
-    int j = (nodeId >> 1) & 1;     // faster than (nodeId % 4) / 2
-    int k = nodeId & 1;            // faster than % 2
+    int nodeId = threadIdx.x % 8;
+    int i = nodeId / 4;
+    int j = (nodeId % 4) / 2;
+    int k = nodeId % 2;
     
     FPfield temp_inc = gpu_grd -> invVOL * gpu_grd -> invVOL * ((i + j + k == 1 || i + j + k == 3) ? -1.0 : 1.0);
 
