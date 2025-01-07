@@ -127,12 +127,13 @@ int main(int argc, char **argv){
         // setZeroDensities(&idn,ids,&grd,param.ns);
         gpu_setZeroDensities(gpu_ids, gpu_idn, gpu_grd, &param, &grd);
 
-        // for (int is=0; is < param.ns; is++)
+        for (int is=0; is < param.ns; is++) {
         //     mover_PC(&part[is],&field,&grd,&param);
-        // iMover = cpuSecond(); // start timer for mover
+        iMover = cpuSecond(); // start timer for mover
         gpu_mover_PC(gpu_part, gpu_field, gpu_grd, &part, &param);
-        // eMover += (cpuSecond() - iMover); // stop timer for mover
-        // std::cout << "   Mover Time (s) = " << eMover << std::endl;
+        eMover += (cpuSecond() - iMover); // stop timer for mover
+        std::cout << "   Mover Time GPU (s) = " << eMover << std::endl;
+        }
 
         gpu_sort_particles(gpu_part, part, &param, &grd);
 
